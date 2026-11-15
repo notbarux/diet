@@ -1,9 +1,24 @@
 {
   "name": "diet-meal-planner",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.1",
   "type": "module",
-  "scripts": {"dev":"vite --host 0.0.0.0", "build":"vue-tsc -b && vite build", "preview":"vite preview"},
-  "dependencies": {"firebase":"^11.0.2", "@lucide/vue":"^1.0.0", "pinia":"^2.3.0", "vue":"^3.5.13", "vue-i18n":"^11.0.0"},
-  "devDependencies": {"@vitejs/plugin-vue":"^5.2.1", "typescript":"~5.6.2", "vite":"^6.0.5", "vue-tsc":"^2.2.0"}
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "firebase": "^11.0.2",
+    "@lucide/vue": "^1.0.0",
+    "pinia": "^2.3.0",
+    "vue": "^3.5.13",
+    "vue-i18n": "^11.0.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "typescript": "~5.6.2",
+    "vite": "^6.0.5",
+    "vue-tsc": "^2.2.0"
+  }
 }

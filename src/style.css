@@ -65,10 +65,12 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .error-text { color: var(--danger); font-size: 12px; }
 
 /* Sticky header: brand / centered date / account controls, then evenly spaced navigation. */
-.app-topbar { position: sticky; top: 0; z-index: 30; padding: 8px clamp(14px, 4vw, 64px) 0; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--bg) 94%, transparent); backdrop-filter: blur(18px); box-shadow: 0 8px 28px #0000000b; }
+.app-topbar { position: sticky; top: 0; z-index: 30; padding: 8px clamp(14px, 4vw, 64px) 8px; border-bottom: 0; background: color-mix(in srgb, var(--bg) 94%, transparent); backdrop-filter: blur(18px); box-shadow: 0 8px 28px #0000000b; }
 .header-main-row { width: 100%; min-height: 51px; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; }
 .brand { display: flex; align-items: center; gap: 10px; color: var(--text); font-size: 21px; font-weight: 800; letter-spacing: -1.2px; }
 .top-brand { justify-self: start; }
+.brand-name { line-height: 1; }
+.brand-version { align-self: flex-end; margin: 0 0 4px -5px; color: var(--muted); font: 500 9px/1 'IBM Plex Mono', monospace; letter-spacing: 0; }
 .brand-mark { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 11px; color: var(--accent-ink); background: var(--accent); }
 .brand-dot, .heading-period { color: var(--accent); }
 .header-date { justify-self: center; color: var(--muted); font: 500 12px 'IBM Plex Mono', monospace; text-align: center; text-transform: capitalize; white-space: nowrap; }
@@ -77,12 +79,11 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .icon-btn svg { width: 17px; height: 17px; }
 .icon-btn:hover { border-color: var(--line); color: var(--text); background: var(--panel-soft); }
 .icon-btn.danger:hover { color: var(--danger); }
-.top-nav { width: min(760px, 100%); min-height: 51px; display: flex; align-items: stretch; justify-content: space-evenly; gap: 7px; margin: 0 auto; }
-.top-nav-item { position: relative; min-width: 0; flex: 1 1 0; display: flex; align-items: center; justify-content: center; gap: 9px; padding: 0 17px; border: 0; border-radius: 11px 11px 0 0; color: var(--muted); background: transparent; font-size: 13px; font-weight: 700; white-space: nowrap; transition: color .18s ease, background .18s ease; }
+.top-nav { width: min(900px, 100%); min-height: 54px; display: flex; align-items: center; justify-content: space-evenly; gap: 12px; margin: 0 auto; }
+.top-nav-item { min-width: 0; max-width: 210px; min-height: 42px; flex: 1 1 0; display: flex; align-items: center; justify-content: center; gap: 9px; padding: 0 20px; border: 1px solid transparent; border-radius: 999px; color: var(--muted); background: transparent; font-size: 13px; font-weight: 700; white-space: nowrap; transition: color .18s ease, background .18s ease, border-color .18s ease; }
 .top-nav-item svg { width: 17px; height: 17px; }
-.top-nav-item:hover { color: var(--text); background: var(--panel-soft); }
-.top-nav-item.active { color: var(--accent); background: var(--soft); }
-.top-nav-item.active::after { position: absolute; right: 15%; bottom: 0; left: 15%; height: 2px; border-radius: 2px 2px 0 0; background: var(--accent); content: ''; }
+.top-nav-item:hover { border-color: var(--line); color: var(--text); background: var(--panel-soft); }
+.top-nav-item.active { border-color: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); background: var(--soft); }
 
 .main-content { width: min(1240px, 100%); min-height: calc(100vh - 103px); margin: 0 auto; padding: 34px clamp(18px, 5vw, 70px) 70px; }
 .page { width: 100%; margin: 0 auto; animation: appear .25s ease both; }
@@ -90,6 +91,8 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .page-heading h1 { margin: 8px 0 5px; font-size: clamp(32px, 4vw, 43px); font-weight: 800; letter-spacing: -2px; line-height: 1.12; }
 .page-heading .muted { margin: 0; color: var(--muted); font-size: 12px; }
 .page-heading.compact { align-items: center; margin-bottom: 27px; }
+.section-heading { margin-bottom: 24px !important; }
+.section-heading h1 { margin: 0; font-size: clamp(27px, 3vw, 36px); font-weight: 800; letter-spacing: -1.4px; line-height: 1.15; }
 .primary-btn, .secondary-btn { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 15px; border: 1px solid transparent; border-radius: 10px; font-size: 12px; font-weight: 800; transition: transform .15s ease, background .15s ease; }
 .primary-btn { color: var(--accent-ink); background: var(--accent); }
 .primary-btn:hover { background: var(--accent-strong); transform: translateY(-1px); }
@@ -101,12 +104,13 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 /* Today and Plan use the same time-first visual language. */
 .today-page { max-width: 930px; padding-top: 14px; }
 .today-schedule { display: grid; gap: 13px; }
-.today-meal-row { display: grid; grid-template-columns: 106px minmax(0, 1fr); align-items: stretch; gap: 13px; }
+.today-meal-row { display: grid; grid-template-columns: 112px minmax(0, 1fr); align-items: stretch; gap: 13px; }
+.today-time-column { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; }
+.today-meal-type-label { color: var(--text); font-size: 13px; font-weight: 800; line-height: 1.15; text-align: center; }
 .meal-time { display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--accent); font: 600 17px 'IBM Plex Mono', monospace; }
 .meal-time svg { opacity: .75; }
 .today-meal-card { min-height: 112px; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 19px 22px; border: 1px solid var(--line); border-radius: 15px; background: var(--panel); box-shadow: 0 7px 24px #0000000b; }
 .today-meal-info { min-width: 0; flex: 1; }
-.meal-type-label { color: var(--muted); font: 600 10px 'IBM Plex Mono', monospace; letter-spacing: .8px; text-transform: uppercase; }
 .today-meal-info h3 { overflow: hidden; margin: 6px 0 0; color: var(--text); font-size: 18px; font-weight: 800; letter-spacing: -.45px; text-overflow: ellipsis; }
 .ingredient-summary { margin: 6px 0 0; color: var(--muted); font-size: 11px; }
 
@@ -154,13 +158,12 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .plan-toolbar { display: flex; align-items: center; gap: 7px; }
 .plan-arrow { width: 39px; height: 39px; border-color: var(--line); background: var(--panel); }
 .history-btn { gap: 7px; }
-.plan-scroll-hint { display: flex; align-items: center; justify-content: space-between; margin: 0 0 9px; color: var(--muted); font: 9px 'IBM Plex Mono', monospace; letter-spacing: .8px; opacity: .75; text-transform: uppercase; }
 .plan-horizontal { display: flex; gap: 15px; overflow-x: auto; overflow-y: visible; padding: 3px 2px 18px; scroll-behavior: smooth; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; scrollbar-width: thin; scrollbar-color: var(--accent-strong) var(--panel); touch-action: pan-x pan-y; }
 .plan-horizontal::-webkit-scrollbar { height: 7px; }
 .plan-horizontal::-webkit-scrollbar-track { border-radius: 7px; background: var(--panel); }
 .plan-horizontal::-webkit-scrollbar-thumb { border-radius: 7px; background: var(--line); }
 .day-card { width: 352px; min-width: 352px; flex: 0 0 352px; overflow: visible; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); scroll-snap-align: start; }
-.day-card-today { border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 16%, transparent); }
+.day-card-today, .day-card-focused { border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 16%, transparent); }
 .day-card-header { min-height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 17px; border-bottom: 1px solid var(--line); }
 .day-weekday { color: var(--muted); font-size: 10px; font-weight: 700; text-transform: uppercase; }
 .day-card-header h2 { margin: 3px 0 0; color: var(--text); font-size: 20px; font-weight: 800; letter-spacing: -.6px; }
@@ -233,18 +236,20 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .shopping-status-control button { flex: 1; }
 }
 @media (max-width: 650px) {
-  .app-topbar { padding: 5px 10px 0; }
+  .app-topbar { padding: 5px 10px 6px; }
   .header-main-row { min-height: 45px; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
   .top-brand { gap: 7px; font-size: 18px; }
+  .brand-version { margin-bottom: 3px; font-size: 8px; }
   .brand-mark { width: 29px; height: 29px; border-radius: 9px; }
   .header-date { max-width: 130px; overflow: hidden; font-size: 9px; text-overflow: ellipsis; }
   .top-actions { gap: 0; }
   .top-actions .icon-btn { width: 31px; height: 33px; }
   .top-actions .icon-btn svg { width: 16px; height: 16px; }
-  .top-nav { min-height: 47px; gap: 3px; }
-  .top-nav-item { flex-direction: column; gap: 2px; padding: 4px 2px; border-radius: 9px 9px 0 0; font-size: 9px; }
-  .top-nav-item svg { width: 16px; height: 16px; }
-  .top-nav-item.active::after { right: 18%; left: 18%; }
+  .top-nav { min-height: 48px; gap: 5px; }
+  .top-nav-item { min-height: 37px; flex: 1 1 0; gap: 5px; padding: 0 7px; border-radius: 999px; font-size: 10px; }
+  .top-nav-item svg { width: 14px; height: 14px; flex: 0 0 auto; }
+  .section-heading { margin-bottom: 20px !important; }
+  .section-heading h1 { font-size: 30px; }
   .main-content { min-height: calc(100vh - 98px); padding: 20px 14px 42px; }
   .page-heading { margin-bottom: 21px; }
   .page-heading h1 { font-size: 34px; }
@@ -252,9 +257,11 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .page-heading.compact > .primary-btn { padding: 9px 10px; font-size: 10px; white-space: nowrap; }
   .today-page { padding-top: 5px; }
   .today-schedule { gap: 10px; }
-  .today-meal-row { grid-template-columns: 64px minmax(0, 1fr); gap: 8px; }
-  .meal-time { flex-direction: column; gap: 4px; font-size: 13px; }
-  .meal-time svg { width: 14px; height: 14px; }
+  .today-meal-row { grid-template-columns: 82px minmax(0, 1fr); gap: 8px; }
+  .today-time-column { gap: 7px; }
+  .today-meal-type-label { font-size: 11px; }
+  .meal-time { flex-direction: row; gap: 5px; font-size: 14px; }
+  .meal-time svg { width: 13px; height: 13px; }
   .today-meal-card { min-height: 120px; align-items: stretch; flex-direction: column; gap: 11px; padding: 13px; }
   .today-meal-info h3 { font-size: 15px; }
   .ingredient-summary { font-size: 10px; }
@@ -297,12 +304,15 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 @media (max-width: 370px) {
   .app-topbar { padding-right: 7px; padding-left: 7px; }
   .top-brand { gap: 5px; font-size: 16px; }
+  .brand-version { margin-bottom: 3px; font-size: 7px; }
   .brand-mark { width: 26px; height: 26px; }
   .header-date { max-width: 105px; font-size: 8px; }
   .top-actions .icon-btn { width: 28px; }
-  .top-nav-item { font-size: 8px; }
+  .top-nav-item { gap: 3px; padding: 0 3px; font-size: 8px; }
+  .top-nav-item svg { width: 12px; height: 12px; }
   .main-content { padding-right: 10px; padding-left: 10px; }
-  .today-meal-row { grid-template-columns: 55px minmax(0, 1fr); gap: 6px; }
+  .today-meal-row { grid-template-columns: 67px minmax(0, 1fr); gap: 6px; }
+  .today-meal-type-label { font-size: 10px; }
   .today-meal-card { padding: 11px; }
   .shopping-status-control button span { font-size: 7px; }
 }

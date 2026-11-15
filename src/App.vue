@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import packageJson from '../package.json'
 import { onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut, type User } from 'firebase/auth'
 import { collection, doc, getDoc, onSnapshot, orderBy, query, serverTimestamp, setDoc, deleteDoc } from 'firebase/firestore'
 import { auth, db, googleProvider, firebaseConfigured } from './lib/firebase'
@@ -12,6 +13,7 @@ import {
 } from '@lucide/vue'
 
 const { t, locale } = useI18n()
+const appVersion = packageJson.version
 const user = ref<User | null>(null)
 const access = ref(false)
 const checking = ref(true)
@@ -26,6 +28,7 @@ const modal = ref(false)
 const editing = ref<Meal | null>(null)
 const selectedDate = ref(new Date())
 const historyMode = ref(false)
+const planScroller = ref<HTMLElement | null>(null)
 const openPickerKey = ref<string | null>(null)
 const form = ref({
   name: '',
@@ -194,6 +197,9 @@ watch(theme, value => {
   localStorage.setItem('diet-theme', value)
 }, { immediate: true })
 watch(locale, value => localStorage.setItem('diet-language', value))
+watch([activeTab, currentKey, historyMode], () => {
+  if (activeTab.value === 'plan') scrollToFocusedDay()
+}, { flush: 'post' })
 
 async function login() {
   if (!auth) return
@@ -285,11 +291,31 @@ function shiftWeek(delta: number) {
   selectedDate.value = next
 }
 function onHorizontalWheel(event: WheelEvent) {
-  const element = event.currentTarget as HTMLElement
-  if (event.shiftKey && Math.abs(event.deltaY) > 0) {
-    event.preventDefault()
-    element.scrollLeft += event.deltaY
-  }
+  if (!event.shiftKey) return
+  const delta = event.deltaY || event.deltaX
+  if (!delta) return
+
+  // Browsers differ: Shift + wheel can be reported as either deltaY or deltaX.
+  event.preventDefault()
+  if (planScroller.value) planScroller.value.scrollLeft += delta
+}
+function scrollToFocusedDay() {
+  void nextTick(() => {
+    const container = planScroller.value
+    if (!container) return
+
+    // In the weekly view focus the selected weekday (initially today);
+    // history starts at the earliest day in the archive.
+    const focusKey = historyMode.value
+      ? (historyDays.value[0] ? dateKey(historyDays.value[0]) : todayKey)
+      : currentKey.value
+    const card = container.querySelector<HTMLElement>(`[data-day-key="${focusKey}"]`)
+    if (!card) return
+
+    const containerRect = container.getBoundingClientRect()
+    const cardRect = card.getBoundingClientRect()
+    container.scrollTo({ left: container.scrollLeft + cardRect.left - containerRect.left, behavior: 'auto' })
+  })
 }
 function hasMeals(day: DayPlan | undefined) {
   return !!day && Object.values(day.meals || {}).some(Boolean)
@@ -419,7 +445,7 @@ function storeName(storeId: string) {
   <div v-else class="app-shell">
     <header class="app-topbar">
       <div class="header-main-row">
-        <div class="brand top-brand"><div class="brand-mark"><Utensils :size="18" /></div><span>diet<span class="brand-dot">.</span></span></div>
+        <div class="brand top-brand"><div class="brand-mark"><Utensils :size="18" /></div><span class="brand-name">diet<span class="brand-dot">.</span></span><span class="brand-version">v{{ appVersion }}</span></div>
         <div class="header-date">{{ fullDate(new Date()) }}</div>
         <div class="top-actions">
           <button class="icon-btn" @click="theme = theme === 'dark' ? 'light' : 'dark'" :title="t(theme === 'dark' ? 'light' : 'dark')"><Sun v-if="theme === 'dark'" /><Moon v-else /></button>
@@ -440,10 +466,12 @@ function storeName(storeId: string) {
       <section v-if="activeTab === 'today'" class="page today-page">
         <div class="today-schedule">
           <article v-for="(type, index) in mealTypes" :key="type" class="today-meal-row">
-            <div class="meal-time"><Clock3 :size="16" /><span>{{ mealTimes[index] }}</span></div>
+            <div class="today-time-column">
+              <span class="today-meal-type-label">{{ t(type) }}</span>
+              <div class="meal-time"><Clock3 :size="16" /><span>{{ mealTimes[index] }}</span></div>
+            </div>
             <div class="today-meal-card">
               <div class="today-meal-info">
-                <span class="meal-type-label">{{ t(type) }}</span>
                 <h3>{{ todayPlan.meals[type]?.mealName || t('emptyDay') }}</h3>
                 <p v-if="todayPlan.meals[type]" class="ingredient-summary">
                   {{ (meals.find(meal => meal.id === todayPlan.meals[type]?.mealId)?.ingredients || []).map(ingredient => ingredient.name).join(' · ') }}
@@ -464,8 +492,8 @@ function storeName(storeId: string) {
       </section>
 
       <section v-else-if="activeTab === 'meals'" class="page">
-        <div class="page-heading compact">
-          <div><p class="eyebrow">YOUR PERSONAL COLLECTION</p><h1>{{ t('allMeals') }}<span class="heading-period">.</span></h1><p class="muted">{{ t('mealCount', { count: meals.length }) }}</p></div>
+        <div class="page-heading compact section-heading">
+          <h1>{{ t('meals') }}</h1>
           <button class="primary-btn" @click="openMeal()"><Plus :size="17" />{{ t('addMeal') }}</button>
         </div>
         <div class="list-toolbar"><div class="search-box"><Search :size="17" /><input v-model="search" :placeholder="t('search')" /></div><span class="sort-label">{{ t('alphabetical') }} ↕</span></div>
@@ -488,9 +516,9 @@ function storeName(storeId: string) {
         <div v-else class="empty-collection"><div class="state-icon"><ChefHat /></div><h3>{{ t('noMeals') }}</h3><button class="text-btn" @click="openMeal()">{{ t('addMeal') }} +</button></div>
       </section>
 
-      <section v-else-if="activeTab === 'plan'" class="page plan-page">
-        <div class="page-heading compact plan-heading">
-          <div><p class="eyebrow">{{ historyMode ? t('history').toUpperCase() : t('thisWeek').toUpperCase() }}</p><h1>{{ historyMode ? t('history') : t('plan') }}<span class="heading-period">.</span></h1><p class="muted" v-if="!historyMode">{{ t('weekOf') }} {{ dateLabel(weekDays[0]) }}</p></div>
+      <section v-else-if="activeTab === 'plan'" class="page plan-page" @wheel="onHorizontalWheel">
+        <div class="page-heading compact plan-heading section-heading">
+          <h1>{{ historyMode ? t('history') : t('plan') }}</h1>
           <div class="plan-toolbar">
             <template v-if="!historyMode">
               <button class="icon-btn plan-arrow" :title="t('previous')" @click="shiftWeek(-1)"><ChevronLeft /></button>
@@ -502,9 +530,8 @@ function storeName(storeId: string) {
           </div>
         </div>
 
-        <div class="plan-scroll-hint"><span>{{ historyMode ? t('history') : t('plan') }}</span><span>⇆</span></div>
-        <div class="plan-horizontal" @wheel="onHorizontalWheel">
-          <article v-for="day in displayedPlanDays" :key="dateKey(day)" class="day-card" :class="{ 'day-card-today': dateKey(day) === todayKey, 'history-day-card': historyMode }">
+        <div ref="planScroller" class="plan-horizontal">
+          <article v-for="day in displayedPlanDays" :key="dateKey(day)" :data-day-key="dateKey(day)" class="day-card" :class="{ 'day-card-today': dateKey(day) === todayKey, 'day-card-focused': !historyMode && dateKey(day) === currentKey, 'history-day-card': historyMode }">
             <header class="day-card-header">
               <div><span class="day-weekday">{{ new Intl.DateTimeFormat(locale === 'it' ? 'it-IT' : 'en-US', { weekday: 'long' }).format(day) }}</span><h2>{{ monthDay(day) }}</h2></div>
               <span v-if="dateKey(day) === todayKey" class="today-marker">{{ t('today') }}</span>
@@ -534,7 +561,7 @@ function storeName(storeId: string) {
       </section>
 
       <section v-else class="page shopping-page">
-        <div class="page-heading compact"><div><p class="eyebrow">{{ t('shoppingSubtitle') }}</p><h1>{{ t('shopping') }}<span class="heading-period">.</span></h1><p class="muted">{{ t('shoppingFromPlan') }}</p></div></div>
+        <div class="page-heading compact section-heading"><h1>{{ t('shopping') }}</h1></div>
         <div v-if="shoppingItems.length" class="shopping-groups">
           <section v-for="group in shoppingGroups" :key="group.id || 'no-store'" class="shopping-store-group">
             <header class="shopping-store-heading"><StoreIcon :size="17" /><h2>{{ group.name }}</h2><span>{{ group.items.length }}</span></header>
