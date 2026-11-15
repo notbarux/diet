@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import packageJson from '../package.json'
 import { onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut, type User } from 'firebase/auth'
@@ -9,7 +9,7 @@ import type { DayPlan, IngredientQuantityUnit, Meal, MealIngredient, MealType, S
 import {
   CalendarDays, ChefHat, Utensils, Plus, ChevronLeft, ChevronRight, Sun, Moon,
   Languages, Search, LogOut, X, Trash2, Pencil, Sparkles, ShoppingBasket,
-  Check, History as HistoryIcon, Store as StoreIcon, House, ShoppingCart, Clock3, SlidersHorizontal,
+  Check, Store as StoreIcon, House, ShoppingCart, Clock3, SlidersHorizontal,
   ChevronUp, ChevronDown,
 } from '@lucide/vue'
 
@@ -27,9 +27,6 @@ const theme = ref<'dark' | 'light'>((localStorage.getItem('diet-theme') as 'dark
 const search = ref('')
 const modal = ref(false)
 const editing = ref<Meal | null>(null)
-const selectedDate = ref(new Date())
-const historyMode = ref(false)
-const planScroller = ref<HTMLElement | null>(null)
 const openPickerKey = ref<string | null>(null)
 const form = ref({
   name: '',
@@ -63,6 +60,11 @@ const mealTimes = ['10:00', '13:00', '16:00', '20:00']
 const today = new Date()
 const dateKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 const todayKey = dateKey(today)
+const planStartDate = new Date(2026, 10, 16)
+const planStartKey = '2026-11-16'
+const planningReferenceDate = today < planStartDate ? planStartDate : today
+const selectedDate = ref(new Date(planningReferenceDate))
+const shoppingWeekSelection = ref<'this' | 'next'>(today.getDay() === 0 || today.getDay() === 6 ? 'next' : 'this')
 const currentKey = computed(() => dateKey(selectedDate.value))
 const dateFromKey = (key: string) => {
   const [year, month, day] = key.split('-').map(Number)
@@ -74,6 +76,13 @@ const startOfWeek = (date: Date) => {
   result.setDate(result.getDate() - ((result.getDay() + 6) % 7))
   return result
 }
+const planStartWeekKey = dateKey(startOfWeek(planStartDate))
+const selectedShoppingWeek = computed(() => {
+  const monday = startOfWeek(today)
+  if (shoppingWeekSelection.value === 'next') monday.setDate(monday.getDate() + 7)
+  return dateKey(monday)
+})
+const canGoToPreviousWeek = computed(() => dateKey(startOfWeek(selectedDate.value)) > planStartWeekKey)
 const dateLabel = (date: Date) => new Intl.DateTimeFormat(locale.value === 'it' ? 'it-IT' : 'en-US', {
   weekday: 'short', day: 'numeric', month: 'short',
 }).format(date)
@@ -95,8 +104,8 @@ const weekDays = computed(() => {
     return day
   })
 })
-const weekStartKey = dateKey(startOfWeek(today))
-const currentWeekEndDate = new Date(startOfWeek(today))
+const weekStartKey = dateKey(startOfWeek(planningReferenceDate))
+const currentWeekEndDate = new Date(startOfWeek(planningReferenceDate))
 currentWeekEndDate.setDate(currentWeekEndDate.getDate() + 6)
 const currentWeekEndKey = dateKey(currentWeekEndDate)
 const weekKeyFor = (key: string) => dateKey(startOfWeek(dateFromKey(key)))
@@ -110,13 +119,13 @@ function thisWeekFrequencyFor(mealId: string): number {
 
 function averageFrequencyFor(mealId: string): number {
   const matchingDays = Object.entries(plans.value)
-    .filter(([key, day]) => key <= currentWeekEndKey &&
+    .filter(([key, day]) => key >= planStartKey && key <= currentWeekEndKey &&
       Object.values(day.meals || {}).some(planned => planned?.mealId === mealId))
     .sort(([a], [b]) => a.localeCompare(b))
   if (!matchingDays.length) return 0
 
   const firstWeekDate = startOfWeek(dateFromKey(matchingDays[0][0]))
-  const currentWeekDate = startOfWeek(today)
+  const currentWeekDate = startOfWeek(planningReferenceDate)
   const firstUtcDay = Date.UTC(firstWeekDate.getFullYear(), firstWeekDate.getMonth(), firstWeekDate.getDate())
   const currentUtcDay = Date.UTC(currentWeekDate.getFullYear(), currentWeekDate.getMonth(), currentWeekDate.getDate())
   const elapsedWeeks = Math.floor((currentUtcDay - firstUtcDay) / (7 * 24 * 60 * 60 * 1000)) + 1
@@ -288,9 +297,6 @@ watch(theme, value => {
   localStorage.setItem('diet-theme', value)
 }, { immediate: true })
 watch(locale, value => localStorage.setItem('diet-language', value))
-watch([activeTab, currentKey, historyMode], () => {
-  if (activeTab.value === 'plan') scrollToFocusedDay()
-}, { flush: 'post' })
 
 async function login() {
   if (!auth) return
@@ -306,6 +312,10 @@ async function logout() {
 }
 function togglePicker(key: string) {
   openPickerKey.value = openPickerKey.value === key ? null : key
+}
+function selectShoppingWeek(week: 'this' | 'next') {
+  shoppingWeekSelection.value = week
+  closePicker()
 }
 function pickPlanMeal(date: Date, type: MealType, mealId: string) {
   void setPlan(date, type, mealId)
@@ -430,72 +440,27 @@ async function setPlan(date: Date, type: MealType, mealId: string) {
 function shiftWeek(delta: number) {
   const next = new Date(selectedDate.value)
   next.setDate(next.getDate() + delta * 7)
+  if (dateKey(startOfWeek(next)) < planStartWeekKey) return
   selectedDate.value = next
 }
-function onHorizontalWheel(event: WheelEvent) {
-  if (!event.shiftKey) return
-  const delta = event.deltaY || event.deltaX
-  if (!delta) return
-
-  // Browsers differ: Shift + wheel can be reported as either deltaY or deltaX.
-  event.preventDefault()
-  if (planScroller.value) planScroller.value.scrollLeft += delta
+function goToThisWeek() {
+  selectedDate.value = new Date(planningReferenceDate)
 }
-function scrollToFocusedDay() {
-  void nextTick(() => {
-    const container = planScroller.value
-    if (!container) return
-
-    // In the weekly view focus the selected weekday (initially today);
-    // history starts at the earliest day in the archive.
-    const focusKey = historyMode.value
-      ? (historyDays.value[0] ? dateKey(historyDays.value[0]) : todayKey)
-      : currentKey.value
-    const card = container.querySelector<HTMLElement>(`[data-day-key="${focusKey}"]`)
-    if (!card) return
-
-    const containerRect = container.getBoundingClientRect()
-    const cardRect = card.getBoundingClientRect()
-    container.scrollTo({ left: container.scrollLeft + cardRect.left - containerRect.left, behavior: 'auto' })
-  })
-}
-function hasMeals(day: DayPlan | undefined) {
-  return !!day && Object.values(day.meals || {}).some(Boolean)
-}
-
-const firstHistoryDate = computed(() => {
-  const candidates = Object.entries(plans.value)
-    .filter(([key, day]) => key <= todayKey && hasMeals(day))
-    .map(([key]) => key)
-    .sort()
-  return candidates[0] || todayKey
-})
-const historyDays = computed(() => {
-  const start = dateFromKey(firstHistoryDate.value)
-  const end = dateFromKey(todayKey)
-  const days: Date[] = []
-  const cursor = new Date(start)
-  while (cursor <= end) {
-    days.push(new Date(cursor))
-    cursor.setDate(cursor.getDate() + 1)
-  }
-  return days
-})
-const displayedPlanDays = computed(() => historyMode.value ? historyDays.value : weekDays.value)
 const shoppingWeekDays = computed(() => {
+  const monday = startOfWeek(today)
+  if (shoppingWeekSelection.value === 'next') monday.setDate(monday.getDate() + 7)
   const days = Array.from({ length: 7 }, (_, index) => {
-    const date = startOfWeek(new Date())
-    date.setDate(date.getDate() + index)
+    const date = new Date(monday)
+    date.setDate(monday.getDate() + index)
     return date
   })
-  return days.filter(date => dateKey(date) >= todayKey)
+  return days.filter(date => dateKey(date) >= todayKey && dateKey(date) >= planStartKey)
 })
 function shoppingItemKey(name: string, storeId: string, unit: IngredientQuantityUnit) {
   const baseKey = `${selectedShoppingWeek.value}:${name.trim().toLocaleLowerCase()}:${storeId || 'none'}`
   // Keep legacy gram item keys stable so existing shopping statuses remain intact.
   return unit === 'unit' ? `${baseKey}:unit` : baseKey
 }
-const selectedShoppingWeek = computed(() => dateKey(startOfWeek(new Date())))
 function combineQuantities(values: string[], unit: IngredientQuantityUnit) {
   const quantities = values.map(value => Number(normalizeQuantity(value, unit))).filter(value => Number.isFinite(value) && value > 0)
   if (!quantities.length) return ''
@@ -689,7 +654,7 @@ function ingredientKeyFor(name: string): string {
               <div class="meal-picker-actions today-picker-actions">
                 <div class="custom-select-wrap" @click.stop>
                   <button class="custom-select-trigger" :aria-expanded="openPickerKey === `today-${type}`" @click="togglePicker(`today-${type}`)">
-                    <span>{{ todayPlan.meals[type] ? t('changeMeal') : t('selectDish') }}</span><ChevronRight class="select-chevron" :size="16" />
+                    <span>{{ todayPlan.meals[type]?.mealName || meals.find(meal => meal.id === todayPlan.meals[type]?.mealId)?.name || t('selectDish') }}</span><ChevronRight class="select-chevron" :size="16" />
                   </button>
                   <div v-if="openPickerKey === `today-${type}`" class="custom-select-menu">
                     <button v-for="meal in meals" :key="meal.id" class="custom-select-option" :class="{ selected: todayPlan.meals[type]?.mealId === meal.id }" @click="pickPlanMeal(dateFromKey(todayKey), type, meal.id)">{{ meal.name }}</button>
@@ -703,11 +668,13 @@ function ingredientKeyFor(name: string): string {
       </section>
 
       <section v-else-if="activeTab === 'meals'" class="page">
-        <div class="page-heading compact section-heading">
+        <div class="page-heading compact section-heading meals-page-heading">
           <h1>{{ t('meals') }}</h1>
-          <button class="primary-btn" @click="openMeal()"><Plus :size="17" />{{ t('addMeal') }}</button>
+          <div class="meals-heading-actions">
+            <div class="search-box meals-search-box"><Search :size="17" /><input v-model="search" :placeholder="t('search')" /></div>
+            <button class="primary-btn" @click="openMeal()"><Plus :size="17" />{{ t('addMeal') }}</button>
+          </div>
         </div>
-        <div class="list-toolbar"><div class="search-box"><Search :size="17" /><input v-model="search" :placeholder="t('search')" /></div><span class="sort-label">{{ t('alphabetical') }} ↕</span></div>
         <div v-if="sortedMeals.length" class="meals-list">
           <article v-for="(meal, index) in sortedMeals" :key="meal.id" class="meal-row">
             <div class="meal-row-number">{{ String(index + 1).padStart(2, '0') }}</div>
@@ -735,22 +702,18 @@ function ingredientKeyFor(name: string): string {
         <div v-else class="empty-collection"><div class="state-icon"><ChefHat /></div><h3>{{ t('noMeals') }}</h3><button class="text-btn" @click="openMeal()">{{ t('addMeal') }} +</button></div>
       </section>
 
-      <section v-else-if="activeTab === 'plan'" class="page plan-page" @wheel="onHorizontalWheel">
+      <section v-else-if="activeTab === 'plan'" class="page plan-page">
         <div class="page-heading compact plan-heading section-heading">
-          <h1>{{ historyMode ? t('history') : t('plan') }}</h1>
+          <h1>{{ t('plan') }}</h1>
           <div class="plan-toolbar">
-            <template v-if="!historyMode">
-              <button class="icon-btn plan-arrow" :title="t('previous')" @click="shiftWeek(-1)"><ChevronLeft /></button>
-              <button class="secondary-btn this-week-btn" @click="selectedDate = new Date()">{{ t('thisWeek') }}</button>
-              <button class="icon-btn plan-arrow" :title="t('next')" @click="shiftWeek(1)"><ChevronRight /></button>
-              <button class="secondary-btn history-btn" @click="historyMode = true"><HistoryIcon :size="16" />{{ t('history') }}</button>
-            </template>
-            <button v-else class="secondary-btn history-btn" @click="historyMode = false"><ChevronLeft :size="16" />{{ t('backToPlan') }}</button>
+            <button class="icon-btn plan-arrow" :title="t('previous')" :disabled="!canGoToPreviousWeek" @click="shiftWeek(-1)"><ChevronLeft /></button>
+            <button class="secondary-btn this-week-btn" @click="goToThisWeek">{{ t('thisWeek') }}</button>
+            <button class="icon-btn plan-arrow" :title="t('next')" @click="shiftWeek(1)"><ChevronRight /></button>
           </div>
         </div>
 
-        <div ref="planScroller" class="plan-horizontal">
-          <article v-for="day in displayedPlanDays" :key="dateKey(day)" :data-day-key="dateKey(day)" class="day-card" :class="{ 'day-card-today': dateKey(day) === todayKey, 'day-card-focused': !historyMode && dateKey(day) === currentKey, 'history-day-card': historyMode }">
+        <div class="plan-days">
+          <article v-for="day in weekDays" :key="dateKey(day)" :data-day-key="dateKey(day)" class="day-card" :class="{ 'day-card-today': dateKey(day) === todayKey, 'day-card-focused': dateKey(day) === currentKey }">
             <header class="day-card-header">
               <div><span class="day-weekday">{{ new Intl.DateTimeFormat(locale === 'it' ? 'it-IT' : 'en-US', { weekday: 'long' }).format(day) }}</span><h2>{{ monthDay(day) }}</h2></div>
               <span v-if="dateKey(day) === todayKey" class="today-marker">{{ t('today') }}</span>
@@ -760,20 +723,17 @@ function ingredientKeyFor(name: string): string {
                 <div class="day-meal-time">{{ mealTimes[index] }}</div>
                 <div class="day-meal-detail">
                   <span class="day-meal-type">{{ t(type) }}</span>
-                  <template v-if="!historyMode">
-                    <div class="meal-picker-actions day-meal-picker-actions">
-                      <div class="custom-select-wrap day-meal-select" @click.stop>
-                        <button class="custom-select-trigger" :aria-expanded="openPickerKey === `plan-${dateKey(day)}-${type}`" @click="togglePicker(`plan-${dateKey(day)}-${type}`)">
-                          <span>{{ plans[dateKey(day)]?.meals[type] ? t('changeMeal') : t('selectDish') }}</span><ChevronRight class="select-chevron" :size="15" />
-                        </button>
-                        <div v-if="openPickerKey === `plan-${dateKey(day)}-${type}`" class="custom-select-menu">
-                          <button v-for="meal in meals" :key="meal.id" class="custom-select-option" :class="{ selected: plans[dateKey(day)]?.meals[type]?.mealId === meal.id }" @click="pickPlanMeal(day, type, meal.id)">{{ meal.name }}</button>
-                        </div>
+                  <div class="meal-picker-actions day-meal-picker-actions">
+                    <div class="custom-select-wrap day-meal-select" @click.stop>
+                      <button class="custom-select-trigger" :aria-expanded="openPickerKey === `plan-${dateKey(day)}-${type}`" @click="togglePicker(`plan-${dateKey(day)}-${type}`)">
+                        <span>{{ plans[dateKey(day)]?.meals[type] ? t('changeMeal') : t('selectDish') }}</span><ChevronRight class="select-chevron" :size="15" />
+                      </button>
+                      <div v-if="openPickerKey === `plan-${dateKey(day)}-${type}`" class="custom-select-menu">
+                        <button v-for="meal in meals" :key="meal.id" class="custom-select-option" :class="{ selected: plans[dateKey(day)]?.meals[type]?.mealId === meal.id }" @click="pickPlanMeal(day, type, meal.id)">{{ meal.name }}</button>
                       </div>
-                      <button v-if="plans[dateKey(day)]?.meals[type]" type="button" class="icon-btn clear-meal-btn" :title="t('clearMeal')" :aria-label="t('clearMeal')" @click="clearPlanMeal(day, type)"><X :size="15" /></button>
                     </div>
-                  </template>
-                  <p v-else class="history-meal-name">{{ plans[dateKey(day)]?.meals[type]?.mealName || t('noMealSelected') }}</p>
+                    <button v-if="plans[dateKey(day)]?.meals[type]" type="button" class="icon-btn clear-meal-btn" :title="t('clearMeal')" :aria-label="t('clearMeal')" @click="clearPlanMeal(day, type)"><X :size="15" /></button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -782,7 +742,21 @@ function ingredientKeyFor(name: string): string {
       </section>
 
       <section v-else class="page shopping-page">
-        <div class="page-heading compact section-heading shopping-page-heading"><h1>{{ t('shopping') }}</h1><button class="secondary-btn store-priority-trigger" @click="openStorePriorityModal"><SlidersHorizontal :size="16" />{{ t('storePriorities') }}</button></div>
+        <div class="page-heading compact section-heading shopping-page-heading">
+          <h1>{{ t('shopping') }}</h1>
+          <div class="shopping-heading-actions">
+            <div class="custom-select-wrap shopping-week-selector" @click.stop>
+              <button class="custom-select-trigger" :aria-expanded="openPickerKey === 'shopping-week'" @click="togglePicker('shopping-week')">
+                <span>{{ shoppingWeekSelection === 'this' ? t('thisWeek') : t('next') }}</span><ChevronRight class="select-chevron" :size="15" />
+              </button>
+              <div v-if="openPickerKey === 'shopping-week'" class="custom-select-menu">
+                <button class="custom-select-option" :class="{ selected: shoppingWeekSelection === 'this' }" @click="selectShoppingWeek('this')">{{ t('thisWeek') }}</button>
+                <button class="custom-select-option" :class="{ selected: shoppingWeekSelection === 'next' }" @click="selectShoppingWeek('next')">{{ t('next') }}</button>
+              </div>
+            </div>
+            <button class="secondary-btn store-priority-trigger" @click="openStorePriorityModal"><SlidersHorizontal :size="16" />{{ t('storePriorities') }}</button>
+          </div>
+        </div>
         <div v-if="shoppingItems.length" class="shopping-groups">
           <section v-for="group in shoppingGroups" :key="group.id || 'no-store'" class="shopping-store-group">
             <header class="shopping-store-heading"><StoreIcon :size="17" /><h2>{{ group.name }}</h2><span>{{ group.items.length }}</span></header>
