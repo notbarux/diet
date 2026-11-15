@@ -187,7 +187,15 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .day-meal-picker-actions .clear-meal-btn svg { width: 13px; height: 13px; }
 /* Shopping list is derived from the selected week's planned meals. */
 .shopping-page-heading { align-items: center; }
-.shopping-heading-actions { display: flex; align-items: center; gap: 9px; }
+.shopping-heading-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 9px; }
+.shopping-filter-toggle { display: inline-flex; align-items: center; gap: 7px; min-height: 40px; color: var(--muted); font-size: 10px; font-weight: 700; white-space: nowrap; cursor: pointer; user-select: none; }
+.shopping-filter-toggle input { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; }
+.shopping-filter-switch { position: relative; width: 32px; height: 18px; flex: 0 0 32px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel-soft); transition: border-color .16s ease, background .16s ease; }
+.shopping-filter-switch > span { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--muted); transition: transform .16s ease, background .16s ease; }
+.shopping-filter-toggle input:checked + .shopping-filter-switch { border-color: var(--accent); background: var(--accent); }
+.shopping-filter-toggle input:checked + .shopping-filter-switch > span { transform: translateX(14px); background: var(--accent-ink); }
+.shopping-filter-toggle input:focus-visible + .shopping-filter-switch { outline: 2px solid var(--accent); outline-offset: 3px; }
+.shopping-filter-toggle:has(input:checked) { color: var(--text); }
 .shopping-week-selector { width: 170px; flex: 0 0 auto; }
 .shopping-week-selector .custom-select-trigger { min-height: 40px; }
 .shopping-page-heading .store-priority-trigger { gap: 8px; }
@@ -354,6 +362,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .day-meal-select .custom-select-trigger { min-height: 35px; font-size: 10px; }
   .shopping-page-heading { align-items: center; flex-wrap: wrap; gap: 10px; }
   .shopping-heading-actions { gap: 6px; margin-left: auto; }
+  .shopping-filter-toggle { min-height: 36px; gap: 5px; font-size: 9px; }
   .shopping-week-selector { width: min(155px, 39vw); }
   .shopping-week-selector .custom-select-trigger { min-height: 36px; padding: 8px 9px; font-size: 10px; }
   .shopping-page-heading .store-priority-trigger { min-height: 36px; padding: 8px 9px; font-size: 10px; }

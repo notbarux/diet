@@ -68,6 +68,7 @@ if (today.getDay() === 6) planDefaultDate.setDate(planDefaultDate.getDate() + 2)
 else if (today.getDay() === 0) planDefaultDate.setDate(planDefaultDate.getDate() + 1)
 const selectedDate = ref(new Date(planDefaultDate < planStartDate ? planStartDate : planDefaultDate))
 const shoppingWeekSelection = ref<'this' | 'next'>(today.getDay() === 0 || today.getDay() === 6 ? 'next' : 'this')
+const excludeAlreadyAtHome = ref(false)
 const currentKey = computed(() => dateKey(selectedDate.value))
 const dateFromKey = (key: string) => {
   const [year, month, day] = key.split('-').map(Number)
@@ -565,6 +566,12 @@ const shoppingGroups = computed(() => {
       items,
     }))
 })
+const visibleShoppingGroups = computed(() => shoppingGroups.value
+  .map(group => ({
+    ...group,
+    items: group.items.filter(item => !excludeAlreadyAtHome.value || item.status !== 'home'),
+  }))
+  .filter(group => group.items.length > 0))
 async function setShoppingStatus(key: string, status: ShoppingStatus) {
   if (!db) return
   shoppingStatuses.value = { ...shoppingStatuses.value, [key]: status }
@@ -756,6 +763,11 @@ function ingredientKeyFor(name: string): string {
         <div class="page-heading compact section-heading shopping-page-heading">
           <h1>{{ t('shopping') }}</h1>
           <div class="shopping-heading-actions">
+            <label class="shopping-filter-toggle">
+              <input v-model="excludeAlreadyAtHome" type="checkbox" />
+              <span class="shopping-filter-switch" aria-hidden="true"><span></span></span>
+              <span class="shopping-filter-label">{{ t('excludeAlreadyAtHome') }}</span>
+            </label>
             <div class="custom-select-wrap shopping-week-selector" @click.stop>
               <button class="custom-select-trigger" :aria-expanded="openPickerKey === 'shopping-week'" @click="togglePicker('shopping-week')">
                 <span>{{ shoppingWeekSelection === 'this' ? t('thisWeek') : t('next') }}</span><ChevronRight class="select-chevron" :size="15" />
@@ -768,8 +780,8 @@ function ingredientKeyFor(name: string): string {
             <button class="secondary-btn store-priority-trigger" @click="openStorePriorityModal"><SlidersHorizontal :size="16" />{{ t('storePriorities') }}</button>
           </div>
         </div>
-        <div v-if="shoppingItems.length" class="shopping-groups">
-          <section v-for="group in shoppingGroups" :key="group.id || 'no-store'" class="shopping-store-group">
+        <div v-if="visibleShoppingGroups.length" class="shopping-groups">
+          <section v-for="group in visibleShoppingGroups" :key="group.id || 'no-store'" class="shopping-store-group">
             <header class="shopping-store-heading"><StoreIcon :size="17" /><h2>{{ group.name }}</h2><span>{{ group.items.length }}</span></header>
             <article v-for="item in group.items" :key="item.key" class="shopping-item-row">
               <div class="shopping-item-info"><h3>{{ item.name }}</h3><p><span v-if="item.quantity">{{ quantityLabel(item.quantity, item.quantityUnit) }}</span><span v-if="!item.quantity && item.occurrences > 1">{{ item.occurrences }}×</span></p></div>
@@ -781,7 +793,11 @@ function ingredientKeyFor(name: string): string {
             </article>
           </section>
         </div>
-        <div v-else class="empty-collection"><ShoppingBasket :size="30" /><h3>{{ t('shoppingEmpty') }}</h3><p class="muted">{{ t('shoppingEmptyHint') }}</p></div>
+        <div v-else class="empty-collection">
+          <ShoppingBasket :size="30" />
+          <h3>{{ shoppingItems.length && excludeAlreadyAtHome ? t('shoppingAllAtHome') : t('shoppingEmpty') }}</h3>
+          <p class="muted">{{ shoppingItems.length && excludeAlreadyAtHome ? t('shoppingAllAtHomeHint') : t('shoppingEmptyHint') }}</p>
+        </div>
       </section>
     </main>
 
