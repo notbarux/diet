@@ -1,6 +1,57 @@
 import { createI18n } from 'vue-i18n'
+
 const messages = {
- en:{today:'Today',meals:'Meals',plan:'Plan',shopping:'Shopping list',todayTitle:'Today, at a glance',todaySub:'A little structure for a better day.',breakfast:'Breakfast',lunch:'Lunch',snack:'Snack',dinner:'Dinner',noMeal:'Nothing planned yet',chooseMeal:'Choose a meal',addMeal:'Add meal',editMeal:'Edit meal',mealName:'Meal name',description:'Description',tags:'Nutrition tags',carbs:'High carbs',protein:'High protein',fat:'High fat',timesPlanned:'Times planned',ingredients:'Ingredients',ingredientsHelp:'Ingredients (one per line)',ingredientsPlaceholder:'e.g. tomatoes\\nmozzarella\\nbasil',save:'Save meal',cancel:'Cancel',delete:'Delete',search:'Search meals…',alphabetical:'Alphabetical',noMeals:'No meals yet. Add your first dish.',thisWeek:'This week',previous:'Previous week',next:'Next week',signIn:'Continue with Google',signOut:'Sign out',accessDenied:'This account is not enabled for this app.',setup:'Configure Firebase to get started.',settings:'Preferences',dark:'Dark',light:'Light',language:'Language',todayFocus:'Today',emptyDay:'No meal selected',selectDish:'Select a dish',remove:'Remove',weekOf:'Week of',mealCount:'{count} meals',confirmDelete:'Delete this meal?',allMeals:'All meals',close:'Close',welcome:'Your personal meal planner',shoppingSubtitle:'FROM YOUR PLANNED MEALS',shoppingFromPlan:'Ingredients from today onwards, based on your plan.',addShoppingItem:'Add an item manually…',add:'Add',completed:'completed',resetChecks:'Clear checks',shoppingEmpty:'Your shopping list is empty',shoppingEmptyHint:'Add ingredients to your meals and plan them to build this list.'},
- it:{today:'Oggi',meals:'Piatti',plan:'Piano',shopping:'Lista della spesa',todayTitle:'Oggi, in breve',todaySub:'Un po’ di organizzazione per la giornata.',breakfast:'Colazione',lunch:'Pranzo',snack:'Merenda',dinner:'Cena',noMeal:'Nessun pasto pianificato',chooseMeal:'Scegli un piatto',addMeal:'Aggiungi piatto',editMeal:'Modifica piatto',mealName:'Nome del piatto',description:'Descrizione',tags:'Tag nutrizionali',carbs:'Ricco di carboidrati',protein:'Ricco di proteine',fat:'Ricco di grassi',timesPlanned:'Volte pianificato',ingredients:'Ingredienti',ingredientsHelp:'Ingredienti (uno per riga)',ingredientsPlaceholder:'es. pomodori\\nmozzarella\\nbasilico',save:'Salva piatto',cancel:'Annulla',delete:'Elimina',search:'Cerca piatti…',alphabetical:'Ordine alfabetico',noMeals:'Nessun piatto. Aggiungi la tua prima ricetta.',thisWeek:'Questa settimana',previous:'Settimana precedente',next:'Settimana successiva',signIn:'Accedi con Google',signOut:'Esci',accessDenied:'Questo account non è abilitato all’applicazione.',setup:'Configura Firebase per iniziare.',settings:'Preferenze',dark:'Scuro',light:'Chiaro',language:'Lingua',todayFocus:'Oggi',emptyDay:'Nessun pasto selezionato',selectDish:'Seleziona un piatto',remove:'Rimuovi',weekOf:'Settimana del',mealCount:'{count} piatti',confirmDelete:'Eliminare questo piatto?',allMeals:'Tutti i piatti',close:'Chiudi',welcome:'La tua agenda dei pasti',shoppingSubtitle:'DAI TUOI PASTI PIANIFICATI',shoppingFromPlan:'Ingredienti da oggi in avanti, ricavati dal tuo piano.',addShoppingItem:'Aggiungi un elemento manualmente…',add:'Aggiungi',completed:'completati',resetChecks:'Azzera spunte',shoppingEmpty:'La lista della spesa è vuota',shoppingEmptyHint:'Aggiungi ingredienti ai piatti e pianificali per popolare questa lista.'}
+  en: {
+    today: 'Today', meals: 'Meals', plan: 'Plan', shopping: 'Shopping',
+    breakfast: 'Breakfast', lunch: 'Lunch', snack: 'Snack', dinner: 'Dinner',
+    addMeal: 'Add meal', editMeal: 'Edit meal', mealName: 'Meal name', description: 'Description',
+    tags: 'Nutrition tags', carbs: 'High carbs', protein: 'High protein', fat: 'High fat',
+    timesPlanned: 'Times planned', ingredients: 'Ingredients', addIngredient: 'Add ingredient',
+    ingredientName: 'Ingredient', quantity: 'Quantity', store: 'Store', chooseStore: 'Choose a store',
+    noStore: 'No store selected', addStore: 'Add store', newStore: 'New store name', saveStore: 'Save store',
+    ingredientsEmpty: 'No ingredients added yet.', save: 'Save meal', cancel: 'Cancel', delete: 'Delete',
+    search: 'Search meals…', alphabetical: 'Alphabetical', noMeals: 'No meals yet. Add your first dish.',
+    previous: 'Previous week', next: 'Next week', thisWeek: 'This week', history: 'History', backToPlan: 'Back to plan',
+    signIn: 'Continue with Google', signOut: 'Sign out', accessDenied: 'This account is not enabled for this app.',
+    setup: 'Configure Firebase to get started.', dark: 'Dark mode', light: 'Light mode', language: 'Language',
+    todayFocus: 'Today', emptyDay: 'No meal selected', selectDish: 'Choose a meal', weekOf: 'Week of',
+    mealCount: '{count} meals', confirmDelete: 'Delete this meal?', allMeals: 'All meals',
+    welcome: 'Your personal meal planner', close: 'Close',
+    shoppingSubtitle: 'THIS WEEK', shoppingFromPlan: 'Ingredients needed for this week’s planned meals.',
+    shoppingEmpty: 'Nothing to buy yet', shoppingEmptyHint: 'Plan meals and add ingredients to see them here.',
+    alreadyAtHome: 'Already at home', bought: 'Bought', toBuy: 'To buy',
+    noIngredients: 'No ingredients',
+    plannedMeals: 'Planned meals', noMealSelected: 'No meal selected',
+    mealFrequency: 'Planned',
+  },
+  it: {
+    today: 'Oggi', meals: 'Piatti', plan: 'Piano', shopping: 'Lista spesa',
+    breakfast: 'Colazione', lunch: 'Pranzo', snack: 'Merenda', dinner: 'Cena',
+    addMeal: 'Aggiungi piatto', editMeal: 'Modifica piatto', mealName: 'Nome del piatto', description: 'Descrizione',
+    tags: 'Tag nutrizionali', carbs: 'Ricco di carboidrati', protein: 'Ricco di proteine', fat: 'Ricco di grassi',
+    timesPlanned: 'Volte pianificato', ingredients: 'Ingredienti', addIngredient: 'Aggiungi ingrediente',
+    ingredientName: 'Ingrediente', quantity: 'Quantità', store: 'Negozio', chooseStore: 'Scegli un negozio',
+    noStore: 'Nessun negozio selezionato', addStore: 'Aggiungi negozio', newStore: 'Nome del nuovo negozio', saveStore: 'Salva negozio',
+    ingredientsEmpty: 'Nessun ingrediente inserito.', save: 'Salva piatto', cancel: 'Annulla', delete: 'Elimina',
+    search: 'Cerca piatti…', alphabetical: 'Ordine alfabetico', noMeals: 'Nessun piatto. Aggiungi la tua prima ricetta.',
+    previous: 'Settimana precedente', next: 'Settimana successiva', thisWeek: 'Questa settimana', history: 'Storico', backToPlan: 'Torna al piano',
+    signIn: 'Accedi con Google', signOut: 'Esci', accessDenied: 'Questo account non è abilitato all’applicazione.',
+    setup: 'Configura Firebase per iniziare.', dark: 'Tema scuro', light: 'Tema chiaro', language: 'Lingua',
+    todayFocus: 'Oggi', emptyDay: 'Nessun pasto selezionato', selectDish: 'Scegli un piatto', weekOf: 'Settimana del',
+    mealCount: '{count} piatti', confirmDelete: 'Eliminare questo piatto?', allMeals: 'Tutti i piatti',
+    welcome: 'La tua agenda dei pasti', close: 'Chiudi',
+    shoppingSubtitle: 'QUESTA SETTIMANA', shoppingFromPlan: 'Ingredienti necessari per i pasti pianificati questa settimana.',
+    shoppingEmpty: 'Niente da comprare', shoppingEmptyHint: 'Pianifica i pasti e aggiungi gli ingredienti per visualizzarli qui.',
+    alreadyAtHome: 'Già in casa', bought: 'Comprato', toBuy: 'Da comprare',
+    noIngredients: 'Nessun ingrediente',
+    plannedMeals: 'Pasti pianificati', noMealSelected: 'Nessun pasto selezionato',
+    mealFrequency: 'Pianificato',
+  },
 }
-export const i18n = createI18n({legacy:false,locale:localStorage.getItem('diet-language')||'en',fallbackLocale:'en',messages})
+
+export const i18n = createI18n({
+  legacy: false,
+  locale: localStorage.getItem('diet-language') || 'en',
+  fallbackLocale: 'en',
+  messages,
+})

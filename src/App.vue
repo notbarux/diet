@@ -2,102 +2,594 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut, type User } from 'firebase/auth'
-import { collection, doc, getDoc, onSnapshot, setDoc, deleteDoc, query, orderBy, serverTimestamp } from 'firebase/firestore'
+import { collection, doc, getDoc, onSnapshot, orderBy, query, serverTimestamp, setDoc, deleteDoc } from 'firebase/firestore'
 import { auth, db, googleProvider, firebaseConfigured } from './lib/firebase'
-import type { Meal, MealType, DayPlan } from './types'
-import { CalendarDays, ChefHat, Utensils, Plus, ChevronLeft, ChevronRight, Sun, Moon, Languages, Search, LogOut, X, Trash2, Pencil, Sparkles, ShoppingBasket, Check, Minus } from '@lucide/vue'
+import type { DayPlan, Meal, MealIngredient, MealType, ShoppingStatus, Store } from './types'
+import {
+  CalendarDays, ChefHat, Utensils, Plus, ChevronLeft, ChevronRight, Sun, Moon,
+  Languages, Search, LogOut, X, Trash2, Pencil, Sparkles, ShoppingBasket,
+  Check, History as HistoryIcon, Store as StoreIcon, House, ShoppingCart, Clock3,
+} from '@lucide/vue'
 
 const { t, locale } = useI18n()
 const user = ref<User | null>(null)
-const access = ref(false), checking = ref(true), authError = ref('')
-const meals = ref<Meal[]>([]), plans = ref<Record<string, DayPlan>>({})
-const activeTab = ref<'today'|'meals'|'plan'|'shopping'>('today')
-const theme = ref<'dark'|'light'>((localStorage.getItem('diet-theme') as 'dark'|'light') || 'dark')
-const search = ref(''), modal = ref(false), editing = ref<Meal|null>(null), selectedDate = ref(new Date())
-const form = ref({ name:'', description:'', tags:[] as string[], ingredientsText:'' })
-const shoppingChecked = ref<Record<string, boolean>>({})
-const manualItems = ref<string[]>([])
-const manualInput = ref('')
-const types: MealType[] = ['breakfast','lunch','snack','dinner']
-const mealTimes = ['10:00','13:00','16:00','20:00']
-const sortedMeals = computed(() => meals.value.filter(m => m.name.toLowerCase().includes(search.value.toLowerCase())).sort((a,b) => a.name.localeCompare(b.name)))
-const dateKey = (d:Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
-const todayKey = dateKey(new Date())
+const access = ref(false)
+const checking = ref(true)
+const authError = ref('')
+const meals = ref<Meal[]>([])
+const stores = ref<Store[]>([])
+const plans = ref<Record<string, DayPlan>>({})
+const activeTab = ref<'today' | 'meals' | 'plan' | 'shopping'>('today')
+const theme = ref<'dark' | 'light'>((localStorage.getItem('diet-theme') as 'dark' | 'light') || 'dark')
+const search = ref('')
+const modal = ref(false)
+const editing = ref<Meal | null>(null)
+const selectedDate = ref(new Date())
+const historyMode = ref(false)
+const openPickerKey = ref<string | null>(null)
+const form = ref({
+  name: '',
+  description: '',
+  tags: [] as string[],
+  ingredients: [] as Array<MealIngredient & { localId: string }>,
+})
+const addingStoreFor = ref<string | null>(null)
+const newStoreName = ref('')
+const shoppingStatuses = ref<Record<string, ShoppingStatus>>({})
+
+const mealTypes: MealType[] = ['breakfast', 'lunch', 'snack', 'dinner']
+const mealTimes = ['10:00', '13:00', '16:00', '20:00']
+const today = new Date()
+const dateKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+const todayKey = dateKey(today)
 const currentKey = computed(() => dateKey(selectedDate.value))
-const todayPlan = computed(() => plans.value[todayKey] || {id:todayKey,date:todayKey,meals:{}} as DayPlan)
-const weekDays = computed(() => { const d=new Date(selectedDate.value); d.setDate(d.getDate()-((d.getDay()+6)%7)); return Array.from({length:7},(_,i)=>{const x=new Date(d);x.setDate(d.getDate()+i);return x}) })
-const dateLabel = (d:Date) => new Intl.DateTimeFormat(locale.value==='it'?'it-IT':'en-US',{weekday:'short',day:'numeric',month:'short'}).format(d)
-const fullDate = (d:Date) => new Intl.DateTimeFormat(locale.value==='it'?'it-IT':'en-US',{weekday:'long',day:'numeric',month:'long'}).format(d)
-const frequencyFor = (mealId:string) => Object.values(plans.value).reduce((sum, day) => sum + Object.values(day.meals || {}).filter(item => item?.mealId===mealId).length, 0)
-const generatedIngredients = computed(() => {
-  const map = new Map<string,string>()
-  for (const [dayKey, day] of Object.entries(plans.value)) {
-    if (dayKey < todayKey) continue
-    for (const planned of Object.values(day.meals || {})) {
+const dateFromKey = (key: string) => {
+  const [year, month, day] = key.split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
+const startOfWeek = (date: Date) => {
+  const result = new Date(date)
+  result.setHours(0, 0, 0, 0)
+  result.setDate(result.getDate() - ((result.getDay() + 6) % 7))
+  return result
+}
+const dateLabel = (date: Date) => new Intl.DateTimeFormat(locale.value === 'it' ? 'it-IT' : 'en-US', {
+  weekday: 'short', day: 'numeric', month: 'short',
+}).format(date)
+const fullDate = (date: Date) => new Intl.DateTimeFormat(locale.value === 'it' ? 'it-IT' : 'en-US', {
+  weekday: 'long', day: 'numeric', month: 'long',
+}).format(date)
+const monthDay = (date: Date) => new Intl.DateTimeFormat(locale.value === 'it' ? 'it-IT' : 'en-US', {
+  day: 'numeric', month: 'short',
+}).format(date)
+const sortedMeals = computed(() => meals.value
+  .filter(meal => meal.name.toLowerCase().includes(search.value.toLowerCase()))
+  .sort((a, b) => a.name.localeCompare(b.name)))
+const todayPlan = computed(() => plans.value[todayKey] || { id: todayKey, date: todayKey, meals: {} } as DayPlan)
+const weekDays = computed(() => {
+  const monday = startOfWeek(selectedDate.value)
+  return Array.from({ length: 7 }, (_, index) => {
+    const day = new Date(monday)
+    day.setDate(monday.getDate() + index)
+    return day
+  })
+})
+const frequencyFor = (mealId: string) => Object.values(plans.value).reduce((total, day) =>
+  total + Object.values(day.meals || {}).filter(planned => planned?.mealId === mealId).length, 0)
+
+function normalizedIngredients(raw: unknown): MealIngredient[] {
+  if (!Array.isArray(raw)) return []
+  return raw.map((item) => {
+    if (typeof item === 'string') return { name: item, quantity: '', storeId: '' }
+    if (item && typeof item === 'object') {
+      const ingredient = item as Partial<MealIngredient>
+      return {
+        name: typeof ingredient.name === 'string' ? ingredient.name : '',
+        quantity: typeof ingredient.quantity === 'string' ? ingredient.quantity : '',
+        storeId: typeof ingredient.storeId === 'string' ? ingredient.storeId : '',
+      }
+    }
+    return { name: '', quantity: '', storeId: '' }
+  }).filter(item => item.name.trim())
+}
+
+let stopMeals: (() => void) | undefined
+let stopPlans: (() => void) | undefined
+let stopStores: (() => void) | undefined
+let stopShopping: (() => void) | undefined
+let unsubscribeAuth: (() => void) | undefined
+
+function subscribe() {
+  if (!db) return
+  stopMeals?.()
+  stopPlans?.()
+  stopStores?.()
+  stopShopping?.()
+  stopMeals = onSnapshot(query(collection(db, 'meals'), orderBy('name')), snapshot => {
+    meals.value = snapshot.docs.map(item => {
+      const data = item.data()
+      return {
+        id: item.id,
+        name: String(data.name || ''),
+        description: String(data.description || ''),
+        tags: Array.isArray(data.tags) ? data.tags : [],
+        ingredients: normalizedIngredients(data.ingredients),
+        createdAt: data.createdAt,
+      }
+    })
+  })
+  stopPlans = onSnapshot(collection(db, 'plan'), snapshot => {
+    const next: Record<string, DayPlan> = {}
+    snapshot.docs.forEach(item => {
+      const data = item.data()
+      next[item.id] = { id: item.id, date: String(data.date || item.id), meals: data.meals || {} } as DayPlan
+    })
+    plans.value = next
+  })
+  stopStores = onSnapshot(query(collection(db, 'stores'), orderBy('name')), snapshot => {
+    stores.value = snapshot.docs.map(item => ({ id: item.id, name: String(item.data().name || '') }))
+  })
+  stopShopping = onSnapshot(doc(db, 'shoppingLists', 'current'), snapshot => {
+    shoppingStatuses.value = (snapshot.data()?.statuses || {}) as Record<string, ShoppingStatus>
+  })
+}
+
+async function checkAccess(currentUser: User) {
+  if (!db) {
+    checking.value = false
+    return
+  }
+  try {
+    const snapshot = await getDoc(doc(db, 'users', currentUser.uid))
+    access.value = snapshot.exists() && snapshot.data().enabled === true
+    if (access.value) subscribe()
+  } catch (error) {
+    console.error('Unable to verify user access:', error)
+    access.value = false
+  } finally {
+    checking.value = false
+  }
+}
+
+function closePicker() {
+  openPickerKey.value = null
+}
+function closePickerOnOutsideClick() {
+  closePicker()
+}
+
+onMounted(() => {
+  document.addEventListener('click', closePickerOnOutsideClick)
+  if (!auth || !db) {
+    checking.value = false
+    return
+  }
+  unsubscribeAuth = onAuthStateChanged(auth, async currentUser => {
+    user.value = currentUser
+    access.value = false
+    checking.value = true
+    stopMeals?.()
+    stopPlans?.()
+    stopStores?.()
+    stopShopping?.()
+    meals.value = []
+    plans.value = {}
+    stores.value = []
+    shoppingStatuses.value = {}
+    if (currentUser) await checkAccess(currentUser)
+    else checking.value = false
+  })
+})
+onUnmounted(() => {
+  document.removeEventListener('click', closePickerOnOutsideClick)
+  unsubscribeAuth?.()
+  stopMeals?.()
+  stopPlans?.()
+  stopStores?.()
+  stopShopping?.()
+})
+
+watch(theme, value => {
+  document.documentElement.dataset.theme = value
+  localStorage.setItem('diet-theme', value)
+}, { immediate: true })
+watch(locale, value => localStorage.setItem('diet-language', value))
+
+async function login() {
+  if (!auth) return
+  authError.value = ''
+  try {
+    await signInWithPopup(auth, googleProvider)
+  } catch (error) {
+    authError.value = error instanceof Error ? error.message : 'Authentication failed'
+  }
+}
+async function logout() {
+  if (auth) await firebaseSignOut(auth)
+}
+function togglePicker(key: string) {
+  openPickerKey.value = openPickerKey.value === key ? null : key
+}
+function pickPlanMeal(date: Date, type: MealType, mealId: string) {
+  void setPlan(date, type, mealId)
+  closePicker()
+}
+function pickStore(ingredient: { storeId: string }, storeId: string, key: string) {
+  ingredient.storeId = storeId
+  closePicker()
+  if (key) closePicker()
+}
+
+function openMeal(meal?: Meal) {
+  editing.value = meal || null
+  form.value = meal ? {
+    name: meal.name,
+    description: meal.description || '',
+    tags: [...(meal.tags || [])],
+    ingredients: normalizedIngredients(meal.ingredients).map(ingredient => ({ ...ingredient, localId: crypto.randomUUID() })),
+  } : { name: '', description: '', tags: [], ingredients: [] }
+  addingStoreFor.value = null
+  newStoreName.value = ''
+  modal.value = true
+}
+function addIngredient() {
+  form.value.ingredients.push({ localId: crypto.randomUUID(), name: '', quantity: '', storeId: '' })
+}
+function removeIngredient(localId: string) {
+  form.value.ingredients = form.value.ingredients.filter(ingredient => ingredient.localId !== localId)
+  if (addingStoreFor.value === localId) addingStoreFor.value = null
+}
+async function saveMeal() {
+  if (!db || !form.value.name.trim()) return
+  const ingredients = form.value.ingredients
+    .filter(ingredient => ingredient.name.trim())
+    .map(({ name, quantity, storeId }) => ({ name: name.trim(), quantity: quantity.trim(), storeId }))
+  const payload = {
+    name: form.value.name.trim(),
+    description: form.value.description.trim(),
+    tags: form.value.tags,
+    ingredients,
+    updatedAt: serverTimestamp(),
+  }
+  if (editing.value) await setDoc(doc(db, 'meals', editing.value.id), payload, { merge: true })
+  else await setDoc(doc(db, 'meals', crypto.randomUUID()), { ...payload, createdAt: serverTimestamp() })
+  modal.value = false
+}
+async function removeMeal(meal: Meal) {
+  if (!db || !confirm(t('confirmDelete'))) return
+  await deleteDoc(doc(db, 'meals', meal.id))
+}
+async function addStore(localId: string) {
+  if (!db || !newStoreName.value.trim()) return
+  const id = crypto.randomUUID()
+  const name = newStoreName.value.trim()
+  await setDoc(doc(db, 'stores', id), { name, createdAt: serverTimestamp() })
+  const ingredient = form.value.ingredients.find(item => item.localId === localId)
+  if (ingredient) ingredient.storeId = id
+  newStoreName.value = ''
+  addingStoreFor.value = null
+}
+async function setPlan(date: Date, type: MealType, mealId: string) {
+  if (!db) return
+  const key = dateKey(date)
+  const chosenMeal = meals.value.find(meal => meal.id === mealId)
+  const day = plans.value[key] || { id: key, date: key, meals: {} }
+  const nextMeals = { ...day.meals }
+  if (chosenMeal) nextMeals[type] = { mealId: chosenMeal.id, mealName: chosenMeal.name }
+  else delete nextMeals[type]
+  await setDoc(doc(db, 'plan', key), { date: key, meals: nextMeals }, { merge: true })
+}
+function shiftWeek(delta: number) {
+  const next = new Date(selectedDate.value)
+  next.setDate(next.getDate() + delta * 7)
+  selectedDate.value = next
+}
+function onHorizontalWheel(event: WheelEvent) {
+  const element = event.currentTarget as HTMLElement
+  if (event.shiftKey && Math.abs(event.deltaY) > 0) {
+    event.preventDefault()
+    element.scrollLeft += event.deltaY
+  }
+}
+function hasMeals(day: DayPlan | undefined) {
+  return !!day && Object.values(day.meals || {}).some(Boolean)
+}
+
+const firstHistoryDate = computed(() => {
+  const candidates = Object.entries(plans.value)
+    .filter(([key, day]) => key <= todayKey && hasMeals(day))
+    .map(([key]) => key)
+    .sort()
+  return candidates[0] || todayKey
+})
+const historyDays = computed(() => {
+  const start = dateFromKey(firstHistoryDate.value)
+  const end = dateFromKey(todayKey)
+  const days: Date[] = []
+  const cursor = new Date(start)
+  while (cursor <= end) {
+    days.push(new Date(cursor))
+    cursor.setDate(cursor.getDate() + 1)
+  }
+  return days
+})
+const displayedPlanDays = computed(() => historyMode.value ? historyDays.value : weekDays.value)
+const shoppingWeekDays = computed(() => {
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const date = startOfWeek(new Date())
+    date.setDate(date.getDate() + index)
+    return date
+  })
+  return days.filter(date => dateKey(date) >= todayKey)
+})
+function shoppingItemKey(name: string, storeId: string) {
+  return `${selectedShoppingWeek.value}:${name.trim().toLocaleLowerCase()}:${storeId || 'none'}`
+}
+const selectedShoppingWeek = computed(() => dateKey(startOfWeek(new Date())))
+function combineQuantities(values: string[]) {
+  const quantities = values.map(value => value.trim()).filter(Boolean)
+  if (quantities.length <= 1) return quantities[0] || ''
+  const parsed = quantities.map(value => {
+    const match = value.match(/^([0-9]+(?:[.,][0-9]+)?)\s*(.*)$/)
+    return match ? { amount: Number(match[1].replace(',', '.')), unit: match[2].trim() } : null
+  })
+  if (parsed.every((value): value is { amount: number; unit: string } => value !== null)
+    && parsed.every(value => value.unit.toLowerCase() === parsed[0].unit.toLowerCase())) {
+    const total = parsed.reduce((sum, value) => sum + value.amount, 0)
+    return `${Number(total.toFixed(3))}${parsed[0].unit ? ` ${parsed[0].unit}` : ''}`
+  }
+  return quantities.join(' + ')
+}
+const shoppingItems = computed(() => {
+  const aggregate = new Map<string, { key: string; name: string; storeId: string; quantities: string[]; occurrences: number }>()
+  for (const date of shoppingWeekDays.value) {
+    const day = plans.value[dateKey(date)]
+    for (const planned of Object.values(day?.meals || {})) {
       if (!planned) continue
-      const meal = meals.value.find(m => m.id===planned.mealId)
+      const meal = meals.value.find(item => item.id === planned.mealId)
       for (const ingredient of meal?.ingredients || []) {
-        const clean = ingredient.trim()
-        if (clean) map.set(clean.toLocaleLowerCase(), clean)
+        const name = ingredient.name.trim()
+        if (!name) continue
+        const key = shoppingItemKey(name, ingredient.storeId)
+        const existing = aggregate.get(key)
+        if (existing) {
+          existing.occurrences += 1
+          if (ingredient.quantity.trim()) existing.quantities.push(ingredient.quantity.trim())
+        } else {
+          aggregate.set(key, {
+            key, name, storeId: ingredient.storeId || '',
+            quantities: ingredient.quantity.trim() ? [ingredient.quantity.trim()] : [], occurrences: 1,
+          })
+        }
       }
     }
   }
-  for (const item of manualItems.value) if(item.trim()) map.set(`manual:${item.toLocaleLowerCase()}`, item)
-  return [...map.entries()].map(([key,name]) => ({key,name}))
+  return [...aggregate.values()].map(item => ({
+    ...item,
+    quantity: combineQuantities(item.quantities),
+    storeName: stores.value.find(store => store.id === item.storeId)?.name || t('noStore'),
+    status: shoppingStatuses.value[item.key] || 'todo' as ShoppingStatus,
+  })).sort((a, b) => a.storeName.localeCompare(b.storeName) || a.name.localeCompare(b.name))
 })
-let stopMeals:(()=>void)|undefined, stopPlans:(()=>void)|undefined, stopShopping:(()=>void)|undefined
-function subscribe() {
+const shoppingGroups = computed(() => {
+  const groups = new Map<string, typeof shoppingItems.value>()
+  for (const item of shoppingItems.value) {
+    const group = groups.get(item.storeId) || []
+    group.push(item)
+    groups.set(item.storeId, group)
+  }
+  return [...groups.entries()].map(([storeId, items]) => ({
+    id: storeId,
+    name: stores.value.find(store => store.id === storeId)?.name || t('noStore'),
+    items,
+  }))
+})
+async function setShoppingStatus(key: string, status: ShoppingStatus) {
   if (!db) return
-  stopMeals?.(); stopPlans?.(); stopShopping?.()
-  stopMeals = onSnapshot(query(collection(db,'meals'),orderBy('name')), snap => meals.value=snap.docs.map(d=>({id:d.id,...d.data()} as Meal)))
-  stopPlans = onSnapshot(collection(db,'plan'), snap => { const next:Record<string,DayPlan>={}; snap.docs.forEach(d=>next[d.id]={id:d.id,...d.data()} as DayPlan); plans.value=next })
-  stopShopping = onSnapshot(doc(db,'shoppingLists','current'), snap => { const data=snap.data(); shoppingChecked.value=data?.checked || {}; manualItems.value=data?.manualItems || [] })
+  shoppingStatuses.value = { ...shoppingStatuses.value, [key]: status }
+  await setDoc(doc(db, 'shoppingLists', 'current'), {
+    statuses: shoppingStatuses.value,
+    updatedAt: serverTimestamp(),
+  }, { merge: true })
 }
-async function checkAccess(u:User) {
-  if (!db) { checking.value=false; return }
-  try { const snap=await getDoc(doc(db,'users',u.uid)); access.value=snap.exists()&&snap.data().enabled===true; if(access.value) subscribe() }
-  catch(e) { console.error('Unable to verify user access:',e); access.value=false }
-  finally { checking.value=false }
+function tagLabel(tag: string) {
+  return t(tag)
 }
-let unsubscribeAuth:(()=>void)|undefined
-onMounted(() => {
-  if(!auth||!db){checking.value=false;return}
-  unsubscribeAuth=onAuthStateChanged(auth,async u=>{user.value=u;access.value=false;checking.value=true;stopMeals?.();stopPlans?.();stopShopping?.();meals.value=[];plans.value={};if(u)await checkAccess(u);else checking.value=false})
-})
-onUnmounted(()=>{unsubscribeAuth?.();stopMeals?.();stopPlans?.();stopShopping?.()})
-watch(theme,v=>{document.documentElement.dataset.theme=v;localStorage.setItem('diet-theme',v)},{immediate:true})
-watch(locale,v=>localStorage.setItem('diet-language',v))
-async function login(){if(!auth)return;authError.value='';try{await signInWithPopup(auth,googleProvider)}catch(e){authError.value=e instanceof Error?e.message:'Authentication failed'}}
-async function logout(){if(auth)await firebaseSignOut(auth)}
-function openMeal(meal?:Meal){editing.value=meal||null;form.value=meal?{name:meal.name,description:meal.description||'',tags:[...(meal.tags||[])],ingredientsText:(meal.ingredients||[]).join('\n')}:{name:'',description:'',tags:[],ingredientsText:''};modal.value=true}
-async function saveMeal(){if(!db||!form.value.name.trim())return;const ingredients=form.value.ingredientsText.split(/[\n,;]/).map(x=>x.trim()).filter(Boolean);const payload={name:form.value.name.trim(),description:form.value.description.trim(),tags:form.value.tags,ingredients,updatedAt:serverTimestamp()};if(editing.value)await setDoc(doc(db,'meals',editing.value.id),payload,{merge:true});else await setDoc(doc(db,'meals',crypto.randomUUID()),{...payload,createdAt:serverTimestamp()});modal.value=false}
-async function removeMeal(m:Meal){if(!db||!confirm(t('confirmDelete')))return;await deleteDoc(doc(db,'meals',m.id))}
-async function setPlan(date:Date,type:MealType,mealId:string){if(!db)return;const key=dateKey(date),chosen=meals.value.find(m=>m.id===mealId),day=plans.value[key]||{id:key,date:key,meals:{}};const next={...day.meals};if(chosen)next[type]={mealId:chosen.id,mealName:chosen.name};else delete next[type];await setDoc(doc(db,'plan',key),{date:key,meals:next},{merge:true})}
-function shiftWeek(delta:number){const d=new Date(selectedDate.value);d.setDate(d.getDate()+delta*7);selectedDate.value=d}
-function tagLabel(tag:string){return t(tag)}
-async function persistShopping(){if(!db)return;await setDoc(doc(db,'shoppingLists','current'),{checked:shoppingChecked.value,manualItems:manualItems.value,updatedAt:serverTimestamp()},{merge:true})}
-async function toggleShopping(key:string){shoppingChecked.value={...shoppingChecked.value,[key]:!shoppingChecked.value[key]};await persistShopping()}
-async function addManualItem(){const value=manualInput.value.trim();if(!value)return;manualItems.value=[...manualItems.value,value];manualInput.value='';await persistShopping()}
-async function removeManualItem(name:string){manualItems.value=manualItems.value.filter(x=>x!==name);await persistShopping()}
-function onWeekWheel(event:WheelEvent){const el=event.currentTarget as HTMLElement;if(event.shiftKey&&Math.abs(event.deltaY)>0){event.preventDefault();el.scrollLeft+=event.deltaY}}
+function storeName(storeId: string) {
+  return stores.value.find(store => store.id === storeId)?.name || t('noStore')
+}
 </script>
+
 <template>
-  <div v-if="!firebaseConfigured" class="auth-screen center-state"><div class="state-icon"><Sparkles/></div><h1>{{t('welcome')}}</h1><p>{{t('setup')}}</p><code>cp .env.example .env.local</code></div>
-  <div v-else-if="checking" class="auth-screen center-state"><div class="loader"/><p>Loading…</p></div>
-  <div v-else-if="!user" class="auth-screen login-state"><div class="hero-orbit"><div class="hero-plate"><Utensils :size="34"/></div></div><p class="eyebrow">A MORE MINDFUL ROUTINE</p><h1>{{t('welcome')}}</h1><p class="muted">Plan ahead. Eat well. Find your rhythm.</p><button class="primary-btn google-btn" @click="login"><span class="google-g">G</span>{{t('signIn')}}</button><p v-if="authError" class="error-text">{{authError}}</p></div>
-  <div v-else-if="!access" class="auth-screen center-state"><div class="state-icon"><X/></div><h2>{{t('accessDenied')}}</h2><p class="muted">Ask the administrator to enable your UID in Firestore.</p><code>{{user.uid}}</code><button class="text-btn" @click="logout">{{t('signOut')}}</button></div>
+  <div v-if="!firebaseConfigured" class="auth-screen center-state">
+    <div class="state-icon"><Sparkles /></div><h1>{{ t('welcome') }}</h1><p>{{ t('setup') }}</p><code>cp .env.example .env.local</code>
+  </div>
+  <div v-else-if="checking" class="auth-screen center-state"><div class="loader" /><p>Loading…</p></div>
+  <div v-else-if="!user" class="auth-screen login-state">
+    <div class="hero-orbit"><div class="hero-plate"><Utensils :size="34" /></div></div>
+    <p class="eyebrow">A MORE MINDFUL ROUTINE</p><h1>{{ t('welcome') }}</h1><p class="muted">Plan ahead. Eat well. Find your rhythm.</p>
+    <button class="primary-btn google-btn" @click="login"><span class="google-g">G</span>{{ t('signIn') }}</button>
+    <p v-if="authError" class="error-text">{{ authError }}</p>
+  </div>
+  <div v-else-if="!access" class="auth-screen center-state">
+    <div class="state-icon"><X /></div><h2>{{ t('accessDenied') }}</h2><p class="muted">Ask the administrator to enable your UID in Firestore.</p>
+    <code>{{ user.uid }}</code><button class="text-btn" @click="logout">{{ t('signOut') }}</button>
+  </div>
+
   <div v-else class="app-shell">
-    <header class="topbar app-topbar">
-      <div class="brand top-brand"><div class="brand-mark"><Utensils :size="18"/></div><span>diet<span class="brand-dot">.</span></span></div>
-      <div class="top-actions"><span class="today-pill"><span></span>{{dateLabel(new Date())}}</span><button class="icon-btn" @click="theme=theme==='dark'?'light':'dark'" :title="t(theme==='dark'?'light':'dark')"><Sun v-if="theme==='dark'"/><Moon v-else/></button><button class="icon-btn" @click="locale=locale==='en'?'it':'en'" :title="t('language')"><Languages/></button><button class="icon-btn" @click="logout" :title="t('signOut')"><LogOut/></button></div>
-      <nav class="top-nav"><button v-for="tab in ['today','meals','plan','shopping'] as const" :key="tab" :class="['top-nav-item',{active:activeTab===tab}]" @click="activeTab=tab"><Sun v-if="tab==='today'"/><ChefHat v-else-if="tab==='meals'"/><CalendarDays v-else-if="tab==='plan'"/><ShoppingBasket v-else/><span>{{t(tab)}}</span></button></nav>
+    <header class="app-topbar">
+      <div class="header-main-row">
+        <div class="brand top-brand"><div class="brand-mark"><Utensils :size="18" /></div><span>diet<span class="brand-dot">.</span></span></div>
+        <div class="header-date">{{ fullDate(new Date()) }}</div>
+        <div class="top-actions">
+          <button class="icon-btn" @click="theme = theme === 'dark' ? 'light' : 'dark'" :title="t(theme === 'dark' ? 'light' : 'dark')"><Sun v-if="theme === 'dark'" /><Moon v-else /></button>
+          <button class="icon-btn" @click="locale = locale === 'en' ? 'it' : 'en'" :title="t('language')"><Languages /></button>
+          <button class="icon-btn" @click="logout" :title="t('signOut')"><LogOut /></button>
+        </div>
+      </div>
+      <nav class="top-nav" aria-label="Main navigation">
+        <button v-for="tab in ['today', 'meals', 'plan', 'shopping'] as const" :key="tab" :class="['top-nav-item', { active: activeTab === tab }]" @click="activeTab = tab">
+          <Sun v-if="tab === 'today'" /><ChefHat v-else-if="tab === 'meals'" /><CalendarDays v-else-if="tab === 'plan'" /><ShoppingBasket v-else />
+          <span>{{ t(tab) }}</span>
+        </button>
+      </nav>
     </header>
+
     <main class="main-content">
-      <section v-if="activeTab==='today'" class="page"><div class="page-heading"><div><p class="eyebrow">{{fullDate(new Date()).toUpperCase()}}</p><h1>{{t('todayTitle')}}<span class="heading-period">.</span></h1><p class="muted">{{t('todaySub')}}</p></div></div><div class="selected-day-heading today-section-heading"><div><p class="eyebrow">{{t('todayFocus').toUpperCase()}}</p><h2>{{fullDate(new Date())}}</h2></div><span class="day-count">{{Object.keys(todayPlan.meals||{}).length}} / 4</span></div><div class="plan-list today-plan-list"><article v-for="(type,i) in types" :key="type" class="plan-row"><div class="plan-time"><span>{{mealTimes[i]}}</span><div class="timeline-dot"/></div><div class="plan-card"><div><small>{{t(type)}}</small><h3>{{todayPlan.meals[type]?.mealName||t('emptyDay')}}</h3><p v-if="todayPlan.meals[type]" class="plan-ingredients">{{(meals.find(m=>m.id===todayPlan.meals[type]?.mealId)?.ingredients||[]).join(' · ')}}</p></div><select :value="todayPlan.meals[type]?.mealId||''" @change="setPlan(new Date(),type,($event.target as HTMLSelectElement).value)"><option value="">{{t('selectDish')}}</option><option v-for="m in meals" :key="m.id" :value="m.id">{{m.name}}</option></select></div></article></div></section>
-      <section v-else-if="activeTab==='meals'" class="page"><div class="page-heading compact"><div><p class="eyebrow">YOUR PERSONAL COLLECTION</p><h1>{{t('allMeals')}}<span class="heading-period">.</span></h1><p class="muted">{{t('mealCount',{count:meals.length})}}</p></div><button class="primary-btn" @click="openMeal()"><Plus :size="17"/>{{t('addMeal')}}</button></div><div class="list-toolbar"><div class="search-box"><Search :size="17"/><input v-model="search" :placeholder="t('search')"/></div><span class="sort-label">{{t('alphabetical')}} ↕</span></div><div v-if="sortedMeals.length" class="meals-list"><article v-for="(m,i) in sortedMeals" :key="m.id" class="meal-row"><div class="meal-row-number">{{String(i+1).padStart(2,'0')}}</div><div class="meal-row-main"><h3>{{m.name}}</h3><p v-if="m.description">{{m.description}}</p><div class="tag-list"><span v-for="tag in m.tags||[]" :key="tag" class="nutrition-tag" :class="tag">{{tagLabel(tag)}}</span></div><p v-if="m.ingredients?.length" class="ingredient-preview">{{t('ingredients')}}: {{m.ingredients.join(' · ')}}</p></div><div class="frequency"><div class="frequency-label">{{t('timesPlanned')}}</div><strong>{{frequencyFor(m.id)}}</strong></div><div class="row-actions"><button class="icon-btn" @click="openMeal(m)"><Pencil/></button><button class="icon-btn danger" @click="removeMeal(m)"><Trash2/></button></div></article></div><div v-else class="empty-collection"><div class="state-icon"><ChefHat/></div><h3>{{t('noMeals')}}</h3><button class="text-btn" @click="openMeal()">{{t('addMeal')}} +</button></div></section>
-      <section v-else-if="activeTab==='plan'" class="page"><div class="page-heading compact"><div><p class="eyebrow">MAKE ROOM FOR VARIETY</p><h1>{{t('plan')}}<span class="heading-period">.</span></h1><p class="muted">{{t('weekOf')}} {{dateLabel(weekDays[0])}}</p></div><div class="week-controls"><button class="icon-btn" @click="shiftWeek(-1)"><ChevronLeft/></button><button class="icon-btn" @click="selectedDate=new Date()">{{t('todayFocus')}}</button><button class="icon-btn" @click="shiftWeek(1)"><ChevronRight/></button></div></div><div class="week-strip" @wheel="onWeekWheel"><button v-for="d in weekDays" :key="dateKey(d)" :class="['day-tab',{selected:dateKey(d)===currentKey,istoday:dateKey(d)===todayKey}]" @click="selectedDate=d"><small>{{new Intl.DateTimeFormat(locale==='it'?'it-IT':'en-US',{weekday:'short'}).format(d)}}</small><b>{{d.getDate()}}</b><i/></button></div><div class="selected-day-heading"><div><p class="eyebrow">{{dateKey(selectedDate)===todayKey?t('todayFocus').toUpperCase():'DAILY OVERVIEW'}}</p><h2>{{fullDate(selectedDate)}}</h2></div><span class="day-count">{{Object.keys((plans[currentKey]?.meals)||{}).length}} / 4</span></div><div class="plan-list"><article v-for="(type,i) in types" :key="type" class="plan-row"><div class="plan-time"><span>{{mealTimes[i]}}</span><div class="timeline-dot"/></div><div class="plan-card"><div><small>{{t(type)}}</small><h3>{{plans[currentKey]?.meals[type]?.mealName||t('emptyDay')}}</h3></div><select :value="plans[currentKey]?.meals[type]?.mealId||''" @change="setPlan(selectedDate,type,($event.target as HTMLSelectElement).value)"><option value="">{{t('selectDish')}}</option><option v-for="m in meals" :key="m.id" :value="m.id">{{m.name}}</option></select></div></article></div></section>
-      <section v-else class="page"><div class="page-heading compact"><div><p class="eyebrow">{{t('shoppingSubtitle')}}</p><h1>{{t('shopping')}}<span class="heading-period">.</span></h1><p class="muted">{{t('shoppingFromPlan')}}</p></div></div><form class="shopping-add" @submit.prevent="addManualItem"><input v-model="manualInput" :placeholder="t('addShoppingItem')"/><button class="primary-btn" type="submit"><Plus :size="16"/>{{t('add')}}</button></form><div class="shopping-progress"><span>{{generatedIngredients.filter(x=>shoppingChecked[x.key]).length}} / {{generatedIngredients.length}} {{t('completed')}}</span><button class="text-btn" @click="shoppingChecked={};persistShopping()">{{t('resetChecks')}}</button></div><div v-if="generatedIngredients.length" class="shopping-list"><label v-for="item in generatedIngredients" :key="item.key" class="shopping-item" :class="{done:shoppingChecked[item.key]}"><input type="checkbox" :checked="!!shoppingChecked[item.key]" @change="toggleShopping(item.key)"/><span class="shopping-check"><Check :size="13"/></span><span>{{item.name}}</span><button v-if="item.key.startsWith('manual:')" class="icon-btn shopping-remove" type="button" @click.prevent="removeManualItem(item.name)"><X :size="15"/></button></label></div><div v-else class="empty-collection"><ShoppingBasket :size="30"/><h3>{{t('shoppingEmpty')}}</h3><p class="muted">{{t('shoppingEmptyHint')}}</p></div></section>
+      <!-- Today intentionally has no duplicate heading/date: the date is centered in the sticky header. -->
+      <section v-if="activeTab === 'today'" class="page today-page">
+        <div class="today-schedule">
+          <article v-for="(type, index) in mealTypes" :key="type" class="today-meal-row">
+            <div class="meal-time"><Clock3 :size="16" /><span>{{ mealTimes[index] }}</span></div>
+            <div class="today-meal-card">
+              <div class="today-meal-info">
+                <span class="meal-type-label">{{ t(type) }}</span>
+                <h3>{{ todayPlan.meals[type]?.mealName || t('emptyDay') }}</h3>
+                <p v-if="todayPlan.meals[type]" class="ingredient-summary">
+                  {{ (meals.find(meal => meal.id === todayPlan.meals[type]?.mealId)?.ingredients || []).map(ingredient => ingredient.name).join(' · ') }}
+                </p>
+              </div>
+              <div class="custom-select-wrap" @click.stop>
+                <button class="custom-select-trigger" :aria-expanded="openPickerKey === `today-${type}`" @click="togglePicker(`today-${type}`)">
+                  <span>{{ meals.find(meal => meal.id === todayPlan.meals[type]?.mealId)?.name || t('selectDish') }}</span><ChevronRight class="select-chevron" :size="16" />
+                </button>
+                <div v-if="openPickerKey === `today-${type}`" class="custom-select-menu">
+                  <button class="custom-select-option" :class="{ selected: !todayPlan.meals[type] }" @click="pickPlanMeal(new Date(), type, '')">{{ t('emptyDay') }}</button>
+                  <button v-for="meal in meals" :key="meal.id" class="custom-select-option" :class="{ selected: todayPlan.meals[type]?.mealId === meal.id }" @click="pickPlanMeal(new Date(), type, meal.id)">{{ meal.name }}</button>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section v-else-if="activeTab === 'meals'" class="page">
+        <div class="page-heading compact">
+          <div><p class="eyebrow">YOUR PERSONAL COLLECTION</p><h1>{{ t('allMeals') }}<span class="heading-period">.</span></h1><p class="muted">{{ t('mealCount', { count: meals.length }) }}</p></div>
+          <button class="primary-btn" @click="openMeal()"><Plus :size="17" />{{ t('addMeal') }}</button>
+        </div>
+        <div class="list-toolbar"><div class="search-box"><Search :size="17" /><input v-model="search" :placeholder="t('search')" /></div><span class="sort-label">{{ t('alphabetical') }} ↕</span></div>
+        <div v-if="sortedMeals.length" class="meals-list">
+          <article v-for="(meal, index) in sortedMeals" :key="meal.id" class="meal-row">
+            <div class="meal-row-number">{{ String(index + 1).padStart(2, '0') }}</div>
+            <div class="meal-row-main">
+              <h3>{{ meal.name }}</h3><p v-if="meal.description">{{ meal.description }}</p>
+              <div class="tag-list"><span v-for="tag in meal.tags || []" :key="tag" class="nutrition-tag" :class="tag">{{ tagLabel(tag) }}</span></div>
+              <div v-if="meal.ingredients.length" class="ingredient-preview">
+                <span v-for="ingredient in meal.ingredients" :key="`${ingredient.name}-${ingredient.storeId}`" class="ingredient-chip">
+                  {{ ingredient.name }}<small v-if="ingredient.quantity">{{ ingredient.quantity }}</small><small v-if="ingredient.storeId">· {{ storeName(ingredient.storeId) }}</small>
+                </span>
+              </div>
+            </div>
+            <div class="frequency"><div class="frequency-label">{{ t('timesPlanned') }}</div><strong>{{ frequencyFor(meal.id) }}</strong></div>
+            <div class="row-actions"><button class="icon-btn" :title="t('editMeal')" @click="openMeal(meal)"><Pencil /></button><button class="icon-btn danger" :title="t('delete')" @click="removeMeal(meal)"><Trash2 /></button></div>
+          </article>
+        </div>
+        <div v-else class="empty-collection"><div class="state-icon"><ChefHat /></div><h3>{{ t('noMeals') }}</h3><button class="text-btn" @click="openMeal()">{{ t('addMeal') }} +</button></div>
+      </section>
+
+      <section v-else-if="activeTab === 'plan'" class="page plan-page">
+        <div class="page-heading compact plan-heading">
+          <div><p class="eyebrow">{{ historyMode ? t('history').toUpperCase() : t('thisWeek').toUpperCase() }}</p><h1>{{ historyMode ? t('history') : t('plan') }}<span class="heading-period">.</span></h1><p class="muted" v-if="!historyMode">{{ t('weekOf') }} {{ dateLabel(weekDays[0]) }}</p></div>
+          <div class="plan-toolbar">
+            <template v-if="!historyMode">
+              <button class="icon-btn plan-arrow" :title="t('previous')" @click="shiftWeek(-1)"><ChevronLeft /></button>
+              <button class="secondary-btn this-week-btn" @click="selectedDate = new Date()">{{ t('thisWeek') }}</button>
+              <button class="icon-btn plan-arrow" :title="t('next')" @click="shiftWeek(1)"><ChevronRight /></button>
+              <button class="secondary-btn history-btn" @click="historyMode = true"><HistoryIcon :size="16" />{{ t('history') }}</button>
+            </template>
+            <button v-else class="secondary-btn history-btn" @click="historyMode = false"><ChevronLeft :size="16" />{{ t('backToPlan') }}</button>
+          </div>
+        </div>
+
+        <div class="plan-scroll-hint"><span>{{ historyMode ? t('history') : t('plan') }}</span><span>⇆</span></div>
+        <div class="plan-horizontal" @wheel="onHorizontalWheel">
+          <article v-for="day in displayedPlanDays" :key="dateKey(day)" class="day-card" :class="{ 'day-card-today': dateKey(day) === todayKey, 'history-day-card': historyMode }">
+            <header class="day-card-header">
+              <div><span class="day-weekday">{{ new Intl.DateTimeFormat(locale === 'it' ? 'it-IT' : 'en-US', { weekday: 'long' }).format(day) }}</span><h2>{{ monthDay(day) }}</h2></div>
+              <span v-if="dateKey(day) === todayKey" class="today-marker">{{ t('today') }}</span>
+            </header>
+            <div class="day-card-meals">
+              <div v-for="(type, index) in mealTypes" :key="type" class="day-meal-row">
+                <div class="day-meal-time">{{ mealTimes[index] }}</div>
+                <div class="day-meal-detail">
+                  <span class="day-meal-type">{{ t(type) }}</span>
+                  <template v-if="!historyMode">
+                    <div class="custom-select-wrap day-meal-select" @click.stop>
+                      <button class="custom-select-trigger" :aria-expanded="openPickerKey === `plan-${dateKey(day)}-${type}`" @click="togglePicker(`plan-${dateKey(day)}-${type}`)">
+                        <span>{{ plans[dateKey(day)]?.meals[type]?.mealName || t('emptyDay') }}</span><ChevronRight class="select-chevron" :size="15" />
+                      </button>
+                      <div v-if="openPickerKey === `plan-${dateKey(day)}-${type}`" class="custom-select-menu">
+                        <button class="custom-select-option" :class="{ selected: !plans[dateKey(day)]?.meals[type] }" @click="pickPlanMeal(day, type, '')">{{ t('emptyDay') }}</button>
+                        <button v-for="meal in meals" :key="meal.id" class="custom-select-option" :class="{ selected: plans[dateKey(day)]?.meals[type]?.mealId === meal.id }" @click="pickPlanMeal(day, type, meal.id)">{{ meal.name }}</button>
+                      </div>
+                    </div>
+                  </template>
+                  <p v-else class="history-meal-name">{{ plans[dateKey(day)]?.meals[type]?.mealName || t('noMealSelected') }}</p>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section v-else class="page shopping-page">
+        <div class="page-heading compact"><div><p class="eyebrow">{{ t('shoppingSubtitle') }}</p><h1>{{ t('shopping') }}<span class="heading-period">.</span></h1><p class="muted">{{ t('shoppingFromPlan') }}</p></div></div>
+        <div v-if="shoppingItems.length" class="shopping-groups">
+          <section v-for="group in shoppingGroups" :key="group.id || 'no-store'" class="shopping-store-group">
+            <header class="shopping-store-heading"><StoreIcon :size="17" /><h2>{{ group.name }}</h2><span>{{ group.items.length }}</span></header>
+            <article v-for="item in group.items" :key="item.key" class="shopping-item-row">
+              <div class="shopping-item-info"><h3>{{ item.name }}</h3><p><span v-if="item.quantity">{{ item.quantity }}</span><span v-if="!item.quantity && item.occurrences > 1">{{ item.occurrences }}×</span></p></div>
+              <div class="shopping-status-control" role="group" :aria-label="item.name">
+                <button :class="{ selected: item.status === 'home' }" @click="setShoppingStatus(item.key, 'home')"><House :size="14" /><span>{{ t('alreadyAtHome') }}</span></button>
+                <button :class="{ selected: item.status === 'bought' }" @click="setShoppingStatus(item.key, 'bought')"><Check :size="14" /><span>{{ t('bought') }}</span></button>
+                <button :class="{ selected: item.status === 'todo' }" @click="setShoppingStatus(item.key, 'todo')"><ShoppingCart :size="14" /><span>{{ t('toBuy') }}</span></button>
+              </div>
+            </article>
+          </section>
+        </div>
+        <div v-else class="empty-collection"><ShoppingBasket :size="30" /><h3>{{ t('shoppingEmpty') }}</h3><p class="muted">{{ t('shoppingEmptyHint') }}</p></div>
+      </section>
     </main>
-    <div v-if="modal" class="modal-backdrop" @click.self="modal=false"><section class="meal-modal"><div class="modal-header"><div><p class="eyebrow">MEAL LIBRARY</p><h2>{{editing?t('editMeal'):t('addMeal')}}</h2></div><button class="icon-btn" @click="modal=false"><X/></button></div><form @submit.prevent="saveMeal"><label>{{t('mealName')}}<input v-model="form.name" required maxlength="90" autofocus/></label><label>{{t('description')}}<textarea v-model="form.description" rows="3" maxlength="300"/></label><label>{{t('ingredientsHelp')}}<textarea v-model="form.ingredientsText" rows="5" :placeholder="t('ingredientsPlaceholder')"/></label><fieldset><legend>{{t('tags')}}</legend><label v-for="tag in ['carbs','protein','fat']" :key="tag" class="check-label"><input v-model="form.tags" type="checkbox" :value="tag"/><span>{{t(tag)}}</span></label></fieldset><div class="modal-actions"><button type="button" class="secondary-btn" @click="modal=false">{{t('cancel')}}</button><button class="primary-btn" type="submit">{{t('save')}}</button></div></form></section></div>
+
+    <div v-if="modal" class="modal-backdrop" @click.self="modal = false">
+      <section class="meal-modal">
+        <div class="modal-header"><div><p class="eyebrow">MEAL LIBRARY</p><h2>{{ editing ? t('editMeal') : t('addMeal') }}</h2></div><button class="icon-btn" @click="modal = false"><X /></button></div>
+        <form @submit.prevent="saveMeal">
+          <label class="form-field">{{ t('mealName') }}<input v-model="form.name" required maxlength="90" autofocus /></label>
+          <label class="form-field">{{ t('description') }}<textarea v-model="form.description" rows="2" maxlength="300" /></label>
+          <div class="ingredients-editor">
+            <div class="ingredients-editor-heading"><h3>{{ t('ingredients') }}</h3><button type="button" class="secondary-btn small-btn" @click="addIngredient"><Plus :size="15" />{{ t('addIngredient') }}</button></div>
+            <p v-if="!form.ingredients.length" class="empty-form-hint">{{ t('ingredientsEmpty') }}</p>
+            <div v-for="ingredient in form.ingredients" :key="ingredient.localId" class="ingredient-editor-row">
+              <div class="ingredient-editor-fields">
+                <label class="form-field ingredient-name-field">{{ t('ingredientName') }}<input v-model="ingredient.name" required :placeholder="t('ingredientName')" /></label>
+                <label class="form-field ingredient-quantity-field">{{ t('quantity') }}<input v-model="ingredient.quantity" :placeholder="locale === 'it' ? 'es. 200 g' : 'e.g. 200 g'" /></label>
+              </div>
+              <div class="store-picker-line">
+                <span class="field-caption">{{ t('store') }}</span>
+                <div class="custom-select-wrap store-select-wrap" @click.stop>
+                  <button type="button" class="custom-select-trigger" @click="togglePicker(`store-${ingredient.localId}`)">
+                    <span>{{ stores.find(store => store.id === ingredient.storeId)?.name || t('chooseStore') }}</span><ChevronRight class="select-chevron" :size="15" />
+                  </button>
+                  <div v-if="openPickerKey === `store-${ingredient.localId}`" class="custom-select-menu">
+                    <button type="button" class="custom-select-option" :class="{ selected: !ingredient.storeId }" @click="pickStore(ingredient, '', `store-${ingredient.localId}`)">{{ t('noStore') }}</button>
+                    <button v-for="store in stores" :key="store.id" type="button" class="custom-select-option" :class="{ selected: ingredient.storeId === store.id }" @click="pickStore(ingredient, store.id, `store-${ingredient.localId}`)">{{ store.name }}</button>
+                  </div>
+                </div>
+                <button type="button" class="text-btn add-store-link" @click="addingStoreFor = addingStoreFor === ingredient.localId ? null : ingredient.localId"><Plus :size="14" />{{ t('addStore') }}</button>
+                <button type="button" class="icon-btn remove-ingredient" :title="t('remove')" @click="removeIngredient(ingredient.localId)"><Trash2 :size="15" /></button>
+              </div>
+              <div v-if="addingStoreFor === ingredient.localId" class="new-store-form">
+                <input v-model="newStoreName" :placeholder="t('newStore')" maxlength="60" @keydown.enter.prevent="addStore(ingredient.localId)" />
+                <button class="primary-btn small-btn" type="button" :disabled="!newStoreName.trim()" @click="addStore(ingredient.localId)">{{ t('saveStore') }}</button>
+              </div>
+            </div>
+          </div>
+          <fieldset><legend>{{ t('tags') }}</legend><label v-for="tag in ['carbs', 'protein', 'fat']" :key="tag" class="check-label"><input v-model="form.tags" type="checkbox" :value="tag" /><span>{{ t(tag) }}</span></label></fieldset>
+          <div class="modal-actions"><button type="button" class="secondary-btn" @click="modal = false">{{ t('cancel') }}</button><button class="primary-btn" type="submit">{{ t('save') }}</button></div>
+        </form>
+      </section>
+    </div>
   </div>
 </template>
