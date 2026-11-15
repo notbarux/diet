@@ -9,7 +9,7 @@ const messages = {
     timesPlanned: 'Times planned', ingredients: 'Ingredients', ingredientsHelp: 'Ingredients for this meal',
     ingredientName: 'Ingredient', quantity: 'Quantity', quantityUnitGrams: 'Grams (g)', quantityUnitPieces: 'Units', quantityUnitPiecesShort: 'pcs', store: 'Stores', selectStore: 'Choose a store', chooseStores: 'Choose stores', storesSelected: '{count} shops selected',
     newStore: 'New shop name', saveStore: 'Save shop', ingredientsEmpty: 'No ingredients added yet.', remove: 'Remove', backToPlan: 'Back to plan', alreadyAtHome: 'Already at home', bought: 'Bought', toBuy: 'To buy',
-    noStore: 'No store', storePriorities: 'Store priorities', storePrioritiesHint: 'Choose the preferred shop when an ingredient can be bought in more than one place. Each item will appear only under its preferred shop. Automatic uses the first available shop alphabetically.', automaticStore: 'Automatic (A–Z)', noMultiStoreItems: 'No items with multiple shops', noMultiStoreItemsHint: 'When a planned ingredient has multiple shops, it will appear here so you can choose where to buy it.', addIngredient: 'Add ingredient', removeIngredient: 'Remove ingredient',
+    noStore: 'No store', storePriorities: 'Store priorities', storePrioritiesHint: 'Set one global order for your shops. Items available in multiple shops will be assigned to the highest-priority shop available.', storePriorityOrderHint: 'Move shops up or down. Shops higher in the list are preferred whenever an ingredient is available in more than one place.', highestPriority: 'First choice', priorityNumber: 'Priority #{number}', moveStoreUp: 'Move shop up', moveStoreDown: 'Move shop down', addIngredient: 'Add ingredient', removeIngredient: 'Remove ingredient',
     manageStores: 'Manage stores', stores: 'Shops', storeName: 'Shop name', addStore: 'Add shop',
     noStores: 'No shops yet. Add the places where you shop.', deleteStore: 'Delete shop',
     save: 'Save', cancel: 'Cancel', delete: 'Delete', search: 'Search meals…', alphabetical: 'A–Z',
@@ -26,7 +26,7 @@ const messages = {
     history: 'History', backToWeek: 'Back to week', noHistory: 'No past meal plans yet.',
     historyFrom: 'History from', todayDate: 'Today', confirmDeleteStore: 'Delete this shop? Existing ingredients will keep an unassigned shop.',
     confirmDeleteMeal: 'Delete this meal?', close: 'Close', mealCountLabel: 'planned',
-    planWeekTitle: 'Weekly plan', storesHint: 'Add shops here, then assign them to ingredients.',
+    planWeekTitle: 'Weekly plan', storesHint: 'Add shops from the ingredient editor. Their global priority can be set here.',
   },
   it: {
     today: 'Oggi', meals: 'Piatti', plan: 'Piano', shopping: 'Spesa',
@@ -36,7 +36,7 @@ const messages = {
     timesPlanned: 'Volte pianificato', ingredients: 'Ingredienti', ingredientsHelp: 'Ingredienti del piatto',
     ingredientName: 'Ingrediente', quantity: 'Quantità', quantityUnitGrams: 'Grammi (g)', quantityUnitPieces: 'Unità', quantityUnitPiecesShort: 'pz', store: 'Negozi', selectStore: 'Scegli un negozio', chooseStores: 'Scegli i negozi', storesSelected: '{count} negozi selezionati',
     newStore: 'Nome del nuovo negozio', saveStore: 'Salva negozio', ingredientsEmpty: 'Nessun ingrediente inserito.', remove: 'Rimuovi', backToPlan: 'Torna al piano', alreadyAtHome: 'Già in casa', bought: 'Comprato', toBuy: 'Da comprare',
-    noStore: 'Nessun negozio', storePriorities: 'Priorità negozi', storePrioritiesHint: 'Scegli il negozio preferito quando un ingrediente è acquistabile in più posti. Ogni articolo comparirà solo sotto il negozio preferito. La modalità automatica usa il primo negozio disponibile in ordine alfabetico.', automaticStore: 'Automatico (A–Z)', noMultiStoreItems: 'Nessun articolo con più negozi', noMultiStoreItemsHint: 'Quando un ingrediente pianificato è associato a più negozi, comparirà qui per permetterti di scegliere dove acquistarlo.', addIngredient: 'Aggiungi ingrediente', removeIngredient: 'Rimuovi ingrediente',
+    noStore: 'Nessun negozio', storePriorities: 'Priorità negozi', storePrioritiesHint: 'Imposta un unico ordine globale dei negozi. Gli articoli disponibili in più negozi verranno assegnati al negozio con la priorità più alta tra quelli disponibili.', storePriorityOrderHint: 'Sposta i negozi verso l’alto o il basso. I negozi più in alto hanno la precedenza quando un ingrediente è disponibile in più posti.', highestPriority: 'Prima scelta', priorityNumber: 'Priorità #{number}', moveStoreUp: 'Sposta negozio in alto', moveStoreDown: 'Sposta negozio in basso', addIngredient: 'Aggiungi ingrediente', removeIngredient: 'Rimuovi ingrediente',
     manageStores: 'Gestisci negozi', stores: 'Negozi', storeName: 'Nome negozio', addStore: 'Aggiungi negozio',
     noStores: 'Nessun negozio. Aggiungi i luoghi in cui fai la spesa.', deleteStore: 'Elimina negozio',
     save: 'Salva', cancel: 'Annulla', delete: 'Elimina', search: 'Cerca piatti…', alphabetical: 'A–Z',
@@ -53,7 +53,7 @@ const messages = {
     history: 'Storico', backToWeek: 'Torna alla settimana', noHistory: 'Non ci sono ancora pasti nello storico.',
     historyFrom: 'Storico dal', todayDate: 'Oggi', confirmDeleteStore: 'Eliminare questo negozio? Gli ingredienti associati resteranno senza negozio.',
     confirmDeleteMeal: 'Eliminare questo piatto?', close: 'Chiudi', mealCountLabel: 'pianificati',
-    planWeekTitle: 'Piano settimanale', storesHint: 'Aggiungi qui i negozi, poi assegnali agli ingredienti.',
+    planWeekTitle: 'Piano settimanale', storesHint: 'Aggiungi i negozi dall’editor degli ingredienti. Qui puoi impostarne la priorità globale.',
   },
 }
 

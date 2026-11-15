@@ -190,7 +190,6 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 /* Shopping list is fully derived from the current week's planned meals. */
 .shopping-page-heading { align-items: center; }
 .shopping-page-heading .store-priority-trigger { gap: 8px; }
-.priority-count { min-width: 19px; height: 19px; display: inline-grid; place-items: center; padding: 0 5px; border-radius: 999px; color: var(--accent-ink); background: var(--accent); font: 700 10px 'IBM Plex Mono', monospace; }
 .shopping-groups { display: grid; gap: 25px; }
 .shopping-store-group { max-width: 900px; overflow: visible; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
 .shopping-store-heading { min-height: 52px; display: flex; align-items: center; gap: 10px; padding: 0 17px; border-bottom: 1px solid var(--line); color: var(--accent); }
@@ -208,12 +207,17 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .store-priority-modal .modal-header { margin-bottom: 18px; }
 .store-priority-modal .modal-header h2 { margin-bottom: 7px; }
 .modal-description { max-width: 470px; margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
-.store-priority-list { display: grid; gap: 9px; }
-.store-priority-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, .8fr); align-items: center; gap: 15px; padding: 13px; border: 1px solid var(--line); border-radius: 11px; background: var(--panel-soft); }
+.store-priority-list { display: grid; gap: 8px; }
+.priority-order-hint { margin: 0 0 4px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.store-priority-row { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--panel-soft); }
+.priority-position { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 9px; color: var(--accent); background: var(--panel); font: 600 11px 'IBM Plex Mono', monospace; }
 .store-priority-item-info { min-width: 0; }
-.store-priority-item-info h3 { margin: 0 0 5px; color: var(--text); font-size: 13px; font-weight: 800; }
-.store-priority-item-info p { overflow: hidden; margin: 0; color: var(--muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
-.priority-select-wrap .custom-select-trigger { min-height: 38px; }
+.store-priority-item-info h3 { margin: 0 0 4px; color: var(--text); font-size: 13px; font-weight: 800; }
+.store-priority-item-info p { margin: 0; color: var(--muted); font-size: 10px; }
+.priority-reorder-actions { display: flex; align-items: center; gap: 4px; }
+.priority-move-btn { width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 9px; color: var(--muted); background: var(--panel); }
+.priority-move-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: var(--soft); }
+.priority-move-btn:disabled { opacity: .28; }
 .empty-priority-state { min-height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; padding: 20px; border: 1px dashed var(--line); border-radius: 12px; color: var(--muted); text-align: center; }
 .empty-priority-state > svg { color: var(--accent); }
 .empty-priority-state h3 { margin: 0; color: var(--text); font-size: 14px; }
@@ -342,7 +346,9 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .shopping-page-heading { align-items: center; }
   .shopping-page-heading .store-priority-trigger { min-height: 36px; padding: 8px 9px; font-size: 10px; }
   .shopping-page-heading .store-priority-trigger > svg { width: 14px; height: 14px; }
-  .store-priority-row { grid-template-columns: minmax(0, 1fr); gap: 9px; }
+  .store-priority-row { grid-template-columns: 32px minmax(0, 1fr) auto; gap: 9px; padding: 10px; }
+  .priority-position { width: 29px; height: 29px; }
+  .priority-move-btn { width: 31px; height: 31px; }
   .shopping-store-heading { min-height: 47px; padding: 0 12px; }
   .shopping-item-row { gap: 10px; padding: 12px; }
   .shopping-status-control { gap: 2px; }

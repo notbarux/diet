@@ -49,6 +49,8 @@ Il documento è la allowlist. Per revocare l'accesso imposta `enabled` a `false`
 - `users/{uid}`: `{ enabled: boolean }` — gestito manualmente dall'amministratore.
 - `meals/{mealId}`: `{ name, description, tags: string[], rating: number, createdAt, updatedAt }`.
 - `plan/{YYYY-MM-DD}`: `{ date: string, meals: { breakfast?: { mealId, mealName }, lunch?: ..., snack?: ..., dinner?: ... } }`.
+- `stores/{storeId}`: `{ name: string, createdAt }` — shop catalog managed from the ingredient editor.
+- `shoppingLists/current`: `{ statuses: Record<string, ShoppingStatus>, storePriorityOrder: string[] }` — shopping statuses and one global shop-priority order shared by all ingredients.
 
 Il piano conserva anche il nome del piatto come snapshot per mantenere leggibili i piani storici se un piatto viene rinominato o rimosso.
 
@@ -79,3 +81,5 @@ Ogni modifica al codice richiede una nuova `npm run build` e il commit della car
 - Il client non può modificare `users`. Le regole non consentono accesso anonimo.
 - L'app non include API server, funzioni Cloud o servizi backend personalizzati.
 - Il campo `rating` rappresenta una valutazione manuale della frequenza di scelta: 1 = scelta rara (verde), 5 = scelta frequente (rosso).
+
+agentic ready
