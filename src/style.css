@@ -4,3 +4,107 @@
 @keyframes appear{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}@keyframes spin{to{transform:rotate(360deg)}}
 @media(max-width:900px){.sidebar{width:205px}.main-content{margin-left:205px;padding:0 4vw 50px}.page{padding-top:43px}.meal-card{min-height:210px}}
 @media(max-width:650px){.sidebar{inset:auto 0 0;width:auto;height:68px;padding:7px 12px calc(7px + env(safe-area-inset-bottom));border-right:0;border-top:1px solid var(--line);flex-direction:row;align-items:center;background:var(--bg)}.brand,.sidebar-bottom{display:none}.sidebar nav{width:100%;display:grid;grid-template-columns:repeat(3,1fr);gap:5px}.nav-item{height:48px;justify-content:center;flex-direction:column;gap:3px;padding:4px;font-size:10px}.nav-item svg{width:17px;height:17px}.nav-today-dot{display:none}.main-content{margin:0;padding:0 18px 100px}.topbar{height:60px}.breadcrumb{display:none}.mobile-brand{display:flex;align-items:center;gap:7px;font-weight:700;font-size:17px;letter-spacing:-.8px}.mobile-brand .brand-mark{width:27px;height:27px;border-radius:8px}.mobile-theme{display:inline-grid}.today-pill{font-size:9px}.page{padding-top:35px}.page-heading{margin-bottom:27px}.page-heading h1{font-size:38px}.heading-decoration{display:none}.meal-grid{grid-template-columns:1fr;gap:10px}.meal-card{min-height:176px;padding:16px 18px}.meal-card-body{padding:18px 0}.meal-card-body h3{font-size:21px}.bottom-note{margin-top:24px}.compact{align-items:flex-end;gap:10px}.compact h1{font-size:36px}.compact>.primary-btn{padding:10px 11px;font-size:10px;white-space:nowrap}.meal-row{gap:9px;padding:15px 0}.meal-row-number{width:19px;font-size:9px}.meal-row-main h3{font-size:16px}.frequency{width:68px}.frequency-label{font-size:8px}.frequency-dots{gap:2px}.frequency-dots i{width:9px}.row-actions{flex-direction:column}.row-actions .icon-btn{width:30px;height:30px}.sort-label{font-size:8px}.week-strip{gap:3px;padding:7px}.day-tab{min-height:69px}.day-tab small{font-size:8px}.day-tab b{font-size:19px}.week-controls .icon-btn{width:31px;height:32px;padding:0}.week-controls .icon-btn:nth-child(2){font-size:9px;padding:0 7px}.selected-day-heading{margin:30px 0 15px}.selected-day-heading h2{font-size:21px}.plan-row{grid-template-columns:53px 1fr;min-height:91px}.plan-time{font-size:9px}.plan-card{padding:12px;min-height:70px;gap:5px}.plan-card h3{font-size:14px}.plan-card select{width:105px;font-size:9px}.meal-modal{padding:20px}.center-state{min-height:calc(100vh - 160px)}.center-state h1{font-size:34px}}
+
+/* Standalone authentication screen: no application navigation is rendered before access is granted. */
+.auth-screen{min-height:100vh;min-height:100svh;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:15px;padding:32px 20px;background:var(--bg)}
+.auth-screen h1{font-size:42px;margin:0}
+.auth-screen .muted{color:var(--muted)}
+.auth-screen .google-btn{margin-top:13px}
+@media(max-width:650px){.auth-screen h1{font-size:34px}}
+
+/* Top navigation and meal planning layout */
+.app-topbar{position:sticky;top:0;z-index:10;background:var(--bg);padding:0 max(22px,4vw);gap:24px}
+.main-content{margin-left:0;padding:0 5vw 60px}
+.top-brand{padding:0;flex:0 0 auto;font-size:21px}
+.top-nav{height:100%;display:flex;align-items:center;justify-content:center;gap:5px;flex:1}
+.top-nav-item{height:42px;padding:0 15px;display:flex;align-items:center;gap:8px;border:0;border-radius:9px;background:transparent;color:var(--muted);font-size:12px}
+.top-nav-item svg{width:16px;height:16px}
+.top-nav-item.active{background:var(--soft);color:var(--accent)}
+.top-nav-item:hover{color:var(--text);background:var(--panel2)}
+.top-actions{flex:0 0 auto}
+.plan-list{max-width:900px}
+.today-section-heading{margin-top:0}
+.today-plan-list .plan-row{min-height:105px}
+.plan-card{width:100%}
+.plan-card>div{min-width:0;flex:1}
+.plan-card select{flex:0 0 190px}
+.plan-ingredients,.ingredient-preview{font-size:10px;color:var(--muted);margin:6px 0 0;line-height:1.5}
+.frequency{width:100px;flex:0 0 100px}
+.frequency strong{font:500 19px 'DM Mono';color:var(--accent)}
+.week-strip{display:flex;overflow-x:auto;scrollbar-width:thin;scrollbar-color:var(--accent) var(--panel);overscroll-behavior-x:contain;scroll-behavior:smooth}
+.day-tab{flex:1 0 90px;min-width:90px}
+.week-strip::-webkit-scrollbar{height:6px}.week-strip::-webkit-scrollbar-thumb{background:var(--line);border-radius:6px}
+.shopping-add{display:flex;gap:9px;max-width:650px;margin:0 0 18px}
+.shopping-add input{flex:1;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:12px;color:var(--text);outline:none;font-size:12px}
+.shopping-progress{max-width:650px;display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);font:10px 'DM Mono';color:var(--muted)}
+.shopping-list{max-width:650px;border-bottom:1px solid var(--line)}
+.shopping-item{min-height:53px;display:flex;align-items:center;gap:12px;padding:8px 10px;border-bottom:1px solid var(--line);font-size:13px;cursor:pointer}
+.shopping-item input{position:absolute;opacity:0;pointer-events:none}
+.shopping-check{width:19px;height:19px;border:1px solid var(--muted);border-radius:6px;display:grid;place-items:center;color:transparent}
+.shopping-item.done{color:var(--muted);text-decoration:line-through}
+.shopping-item.done .shopping-check{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.shopping-remove{margin-left:auto}
+.shopping-item:not(.done) .shopping-remove{opacity:.5}
+@media(max-width:850px){.app-topbar{padding:0 18px;gap:12px}.top-brand{font-size:18px}.top-nav-item{padding:0 10px}.today-pill{display:none}.main-content{padding:0 4vw 50px}}
+@media(max-width:650px){.app-topbar{height:auto;min-height:104px;display:grid;grid-template-columns:1fr auto;grid-template-rows:46px 48px;gap:0;padding:5px 15px 4px}.top-brand{grid-column:1;grid-row:1}.top-actions{grid-column:2;grid-row:1;gap:2px}.top-nav{grid-column:1 / -1;grid-row:2;justify-content:stretch;gap:3px;width:100%}.top-nav-item{height:40px;flex:1;justify-content:center;flex-direction:column;gap:2px;padding:2px;font-size:9px}.top-nav-item svg{width:16px;height:16px}.main-content{margin:0;padding:0 17px 45px}.page{padding-top:31px}.meal-row{align-items:flex-start;flex-wrap:wrap}.meal-row-main{flex-basis:calc(100% - 45px);order:1}.meal-row-number{order:0}.frequency{order:2;margin-left:44px;width:auto;flex:1}.row-actions{order:3;flex-direction:row}.plan-row{grid-template-columns:55px minmax(0,1fr)}.plan-card{align-items:flex-start;flex-direction:column;gap:9px}.plan-card select{flex:0 0 auto;width:100%;text-align:left}.week-strip{margin-right:-17px;padding:9px 17px 12px 9px;border-radius:12px 0 0 12px}.day-tab{flex:0 0 68px;min-width:68px}.shopping-add .primary-btn{padding:10px 12px}.shopping-item{font-size:12px}}
+
+
+/* Keep identity and account controls on the first header row, with navigation directly below. */
+.app-topbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: 52px 46px;
+  align-content: center;
+  gap: 0;
+  height: auto;
+  min-height: 102px;
+  padding: 4px max(22px, 4vw) 0;
+}
+.top-brand {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+}
+.top-actions {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+  gap: 8px;
+}
+.top-nav {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  align-self: center;
+  justify-content: center;
+  width: 100%;
+  height: 46px;
+}
+/* Keep the date visible beside the logo and controls on tablet and mobile too. */
+.today-pill {
+  display: flex;
+}
+@media (max-width: 650px) {
+  .app-topbar {
+    min-height: 104px;
+    grid-template-rows: 46px 48px;
+    padding: 5px 15px 4px;
+  }
+  .top-brand { grid-column: 1; grid-row: 1; }
+  .top-actions { grid-column: 2; grid-row: 1; gap: 2px; }
+  .top-nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-content: stretch;
+    gap: 3px;
+    height: 48px;
+  }
+}
+@media (max-width: 380px) {
+  .app-topbar { padding-left: 9px; padding-right: 9px; }
+  .top-brand { gap: 7px; font-size: 17px; }
+  .top-brand .brand-mark { width: 29px; height: 29px; }
+  .top-actions { gap: 1px; }
+  .top-actions .icon-btn { width: 32px; height: 32px; }
+  .today-pill { gap: 5px; font-size: 8px; }
+  .top-nav-item { font-size: 8px; }
+}
