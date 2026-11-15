@@ -328,6 +328,11 @@ function clearPlanMeal(date: Date, type: MealType) {
   void setPlan(date, type, '')
   closePicker()
 }
+function plannedMealName(dayKey: string, type: MealType): string | undefined {
+  const planned = plans.value[dayKey]?.meals?.[type]
+  if (!planned) return undefined
+  return meals.value.find(meal => meal.id === planned.mealId)?.name || planned.mealName || undefined
+}
 function pickStore(ingredient: { storeIds: string[] }, storeId: string) {
   if (!storeId) {
     ingredient.storeIds = []
@@ -715,28 +720,31 @@ function ingredientKeyFor(name: string): string {
           </div>
         </div>
 
-        <div class="plan-days">
-          <article v-for="day in weekDays" :key="dateKey(day)" :data-day-key="dateKey(day)" class="day-card" :class="{ 'day-card-today': dateKey(day) === todayKey, 'day-card-focused': dateKey(day) === currentKey }">
-            <header class="day-card-header">
-              <div><span class="day-weekday">{{ new Intl.DateTimeFormat(locale === 'it' ? 'it-IT' : 'en-US', { weekday: 'long' }).format(day) }}</span><h2>{{ monthDay(day) }}</h2></div>
+        <div class="plan-day-list">
+          <article v-for="day in weekDays" :key="dateKey(day)" :data-day-key="dateKey(day)" class="plan-day-row" :class="{ 'plan-day-row-today': dateKey(day) === todayKey, 'plan-day-row-focused': dateKey(day) === currentKey }">
+            <header class="plan-day-heading">
+              <div>
+                <span class="day-weekday">{{ new Intl.DateTimeFormat(locale === 'it' ? 'it-IT' : 'en-US', { weekday: 'long' }).format(day) }}</span>
+                <h2>{{ monthDay(day) }}</h2>
+              </div>
               <span v-if="dateKey(day) === todayKey" class="today-marker">{{ t('today') }}</span>
             </header>
-            <div class="day-card-meals">
-              <div v-for="(type, index) in mealTypes" :key="type" class="day-meal-row">
-                <div class="day-meal-time">{{ mealTimes[index] }}</div>
-                <div class="day-meal-detail">
+            <div class="plan-day-meals">
+              <div v-for="(type, index) in mealTypes" :key="type" class="plan-meal-slot">
+                <div class="plan-meal-meta">
                   <span class="day-meal-type">{{ t(type) }}</span>
-                  <div class="meal-picker-actions day-meal-picker-actions">
-                    <div class="custom-select-wrap day-meal-select" @click.stop>
-                      <button class="custom-select-trigger" :aria-expanded="openPickerKey === `plan-${dateKey(day)}-${type}`" @click="togglePicker(`plan-${dateKey(day)}-${type}`)">
-                        <span>{{ plans[dateKey(day)]?.meals[type] ? t('changeMeal') : t('selectDish') }}</span><ChevronRight class="select-chevron" :size="15" />
-                      </button>
-                      <div v-if="openPickerKey === `plan-${dateKey(day)}-${type}`" class="custom-select-menu">
-                        <button v-for="meal in meals" :key="meal.id" class="custom-select-option" :class="{ selected: plans[dateKey(day)]?.meals[type]?.mealId === meal.id }" @click="pickPlanMeal(day, type, meal.id)">{{ meal.name }}</button>
-                      </div>
+                  <span class="day-meal-time">{{ mealTimes[index] }}</span>
+                </div>
+                <div class="meal-picker-actions day-meal-picker-actions">
+                  <div class="custom-select-wrap day-meal-select" @click.stop>
+                    <button class="custom-select-trigger" :aria-expanded="openPickerKey === `plan-${dateKey(day)}-${type}`" @click="togglePicker(`plan-${dateKey(day)}-${type}`)">
+                      <span>{{ plannedMealName(dateKey(day), type) || t('selectDish') }}</span><ChevronRight class="select-chevron" :size="15" />
+                    </button>
+                    <div v-if="openPickerKey === `plan-${dateKey(day)}-${type}`" class="custom-select-menu">
+                      <button v-for="meal in meals" :key="meal.id" class="custom-select-option" :class="{ selected: plans[dateKey(day)]?.meals[type]?.mealId === meal.id }" @click="pickPlanMeal(day, type, meal.id)">{{ meal.name }}</button>
                     </div>
-                    <button v-if="plans[dateKey(day)]?.meals[type]" type="button" class="icon-btn clear-meal-btn" :title="t('clearMeal')" :aria-label="t('clearMeal')" @click="clearPlanMeal(day, type)"><X :size="15" /></button>
                   </div>
+                  <button v-if="plans[dateKey(day)]?.meals[type]" type="button" class="icon-btn clear-meal-btn" :title="t('clearMeal')" :aria-label="t('clearMeal')" @click="clearPlanMeal(day, type)"><X :size="15" /></button>
                 </div>
               </div>
             </div>
