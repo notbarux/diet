@@ -1,16 +1,17 @@
 export type MealType = 'breakfast' | 'lunch' | 'snack' | 'dinner'
-export type ShoppingStatus = 'home' | 'bought' | 'todo'
 
 export interface MealIngredient {
   name: string
+  /** Numeric quantity expressed in grams; stored as a string for form binding. */
   quantity: string
-  storeId: string
+  storeIds: string[]
+  /** Legacy Firestore field; normalized to storeIds when reading old documents. */
+  storeId?: string
 }
 
 export interface Store {
   id: string
   name: string
-  createdAt?: unknown
 }
 
 export interface Meal {
@@ -32,3 +33,5 @@ export interface DayPlan {
   date: string
   meals: Partial<Record<MealType, PlannedMeal>>
 }
+
+export type ShoppingStatus = 'home' | 'bought' | 'buy'

@@ -80,19 +80,35 @@ const weekDays = computed(() => {
 const frequencyFor = (mealId: string) => Object.values(plans.value).reduce((total, day) =>
   total + Object.values(day.meals || {}).filter(planned => planned?.mealId === mealId).length, 0)
 
+function normalizeGramQuantity(value: unknown): string {
+  if (typeof value !== 'string' && typeof value !== 'number') return ''
+  const raw = String(value).trim()
+  if (!raw) return ''
+  // Accept existing values such as "200 g" and normalize them to a number.
+  const match = raw.match(/^([0-9]+(?:[.,][0-9]+)?)\s*(g|gr|grammi|grams|kg|kilogrammi|kilograms)?$/i)
+  if (!match) return ''
+  const amount = Number(match[1].replace(',', '.'))
+  const grams = /^k/i.test(match[2] || '') ? amount * 1000 : amount
+  return String(Number(grams.toFixed(3)))
+}
+
 function normalizedIngredients(raw: unknown): MealIngredient[] {
   if (!Array.isArray(raw)) return []
   return raw.map((item) => {
-    if (typeof item === 'string') return { name: item, quantity: '', storeId: '' }
+    if (typeof item === 'string') return { name: item, quantity: '', storeIds: [] }
     if (item && typeof item === 'object') {
-      const ingredient = item as Partial<MealIngredient>
+      const ingredient = item as { name?: unknown; quantity?: unknown; storeId?: unknown; storeIds?: unknown }
+      const legacyStoreIds = typeof ingredient.storeId === 'string' && ingredient.storeId ? [ingredient.storeId] : []
+      const storeIds = Array.isArray(ingredient.storeIds)
+        ? ingredient.storeIds.filter((storeId): storeId is string => typeof storeId === 'string' && !!storeId)
+        : legacyStoreIds
       return {
         name: typeof ingredient.name === 'string' ? ingredient.name : '',
-        quantity: typeof ingredient.quantity === 'string' ? ingredient.quantity : '',
-        storeId: typeof ingredient.storeId === 'string' ? ingredient.storeId : '',
+        quantity: normalizeGramQuantity(ingredient.quantity),
+        storeIds: [...new Set(storeIds)],
       }
     }
-    return { name: '', quantity: '', storeId: '' }
+    return { name: '', quantity: '', storeIds: [] }
   }).filter(item => item.name.trim())
 }
 
@@ -220,10 +236,24 @@ function pickPlanMeal(date: Date, type: MealType, mealId: string) {
   void setPlan(date, type, mealId)
   closePicker()
 }
-function pickStore(ingredient: { storeId: string }, storeId: string, key: string) {
-  ingredient.storeId = storeId
-  closePicker()
-  if (key) closePicker()
+function pickStore(ingredient: { storeIds: string[] }, storeId: string) {
+  if (!storeId) {
+    ingredient.storeIds = []
+    closePicker()
+    return
+  }
+  ingredient.storeIds = ingredient.storeIds.includes(storeId)
+    ? ingredient.storeIds.filter(id => id !== storeId)
+    : [...ingredient.storeIds, storeId]
+}
+function storeNames(storeIds: string[]): string {
+  return stores.value.filter(store => storeIds.includes(store.id)).map(store => store.name).join(', ')
+}
+function storeSelectionLabel(storeIds: string[]): string {
+  const selectedCount = storeIds.length
+  if (!selectedCount) return t('chooseStores')
+  if (selectedCount === 1) return storeNames(storeIds) || t('chooseStores')
+  return t('storesSelected', { count: selectedCount })
 }
 
 function openMeal(meal?: Meal) {
@@ -239,7 +269,7 @@ function openMeal(meal?: Meal) {
   modal.value = true
 }
 function addIngredient() {
-  form.value.ingredients.push({ localId: crypto.randomUUID(), name: '', quantity: '', storeId: '' })
+  form.value.ingredients.push({ localId: crypto.randomUUID(), name: '', quantity: '', storeIds: [] })
 }
 function removeIngredient(localId: string) {
   form.value.ingredients = form.value.ingredients.filter(ingredient => ingredient.localId !== localId)
@@ -249,7 +279,7 @@ async function saveMeal() {
   if (!db || !form.value.name.trim()) return
   const ingredients = form.value.ingredients
     .filter(ingredient => ingredient.name.trim())
-    .map(({ name, quantity, storeId }) => ({ name: name.trim(), quantity: quantity.trim(), storeId }))
+    .map(({ name, quantity, storeIds }) => ({ name: name.trim(), quantity: normalizeGramQuantity(quantity), storeIds: [...new Set(storeIds)] }))
   const payload = {
     name: form.value.name.trim(),
     description: form.value.description.trim(),
@@ -271,7 +301,7 @@ async function addStore(localId: string) {
   const name = newStoreName.value.trim()
   await setDoc(doc(db, 'stores', id), { name, createdAt: serverTimestamp() })
   const ingredient = form.value.ingredients.find(item => item.localId === localId)
-  if (ingredient) ingredient.storeId = id
+  if (ingredient) ingredient.storeIds = [...new Set([...ingredient.storeIds, id])]
   newStoreName.value = ''
   addingStoreFor.value = null
 }
@@ -353,18 +383,10 @@ function shoppingItemKey(name: string, storeId: string) {
 }
 const selectedShoppingWeek = computed(() => dateKey(startOfWeek(new Date())))
 function combineQuantities(values: string[]) {
-  const quantities = values.map(value => value.trim()).filter(Boolean)
-  if (quantities.length <= 1) return quantities[0] || ''
-  const parsed = quantities.map(value => {
-    const match = value.match(/^([0-9]+(?:[.,][0-9]+)?)\s*(.*)$/)
-    return match ? { amount: Number(match[1].replace(',', '.')), unit: match[2].trim() } : null
-  })
-  if (parsed.every((value): value is { amount: number; unit: string } => value !== null)
-    && parsed.every(value => value.unit.toLowerCase() === parsed[0].unit.toLowerCase())) {
-    const total = parsed.reduce((sum, value) => sum + value.amount, 0)
-    return `${Number(total.toFixed(3))}${parsed[0].unit ? ` ${parsed[0].unit}` : ''}`
-  }
-  return quantities.join(' + ')
+  const quantities = values.map(value => Number(normalizeGramQuantity(value))).filter(value => Number.isFinite(value) && value > 0)
+  if (!quantities.length) return ''
+  const total = quantities.reduce((sum, value) => sum + value, 0)
+  return String(Number(total.toFixed(3)))
 }
 const shoppingItems = computed(() => {
   const aggregate = new Map<string, { key: string; name: string; storeId: string; quantities: string[]; occurrences: number }>()
@@ -376,16 +398,20 @@ const shoppingItems = computed(() => {
       for (const ingredient of meal?.ingredients || []) {
         const name = ingredient.name.trim()
         if (!name) continue
-        const key = shoppingItemKey(name, ingredient.storeId)
-        const existing = aggregate.get(key)
-        if (existing) {
-          existing.occurrences += 1
-          if (ingredient.quantity.trim()) existing.quantities.push(ingredient.quantity.trim())
-        } else {
-          aggregate.set(key, {
-            key, name, storeId: ingredient.storeId || '',
-            quantities: ingredient.quantity.trim() ? [ingredient.quantity.trim()] : [], occurrences: 1,
-          })
+        // An ingredient can be sourced from more than one shop. Show it in each selected shop group.
+        const assignedStoreIds = ingredient.storeIds.length ? ingredient.storeIds : ['']
+        for (const storeId of assignedStoreIds) {
+          const key = shoppingItemKey(name, storeId)
+          const existing = aggregate.get(key)
+          if (existing) {
+            existing.occurrences += 1
+            if (ingredient.quantity.trim()) existing.quantities.push(ingredient.quantity.trim())
+          } else {
+            aggregate.set(key, {
+              key, name, storeId,
+              quantities: ingredient.quantity.trim() ? [ingredient.quantity.trim()] : [], occurrences: 1,
+            })
+          }
         }
       }
     }
@@ -421,9 +447,6 @@ async function setShoppingStatus(key: string, status: ShoppingStatus) {
 function tagLabel(tag: string) {
   return t(tag)
 }
-function storeName(storeId: string) {
-  return stores.value.find(store => store.id === storeId)?.name || t('noStore')
-}
 </script>
 
 <template>
@@ -445,7 +468,7 @@ function storeName(storeId: string) {
   <div v-else class="app-shell">
     <header class="app-topbar">
       <div class="header-main-row">
-        <div class="brand top-brand"><div class="brand-mark"><Utensils :size="18" /></div><span class="brand-name">diet<span class="brand-dot">.</span></span><span class="brand-version">v{{ appVersion }}</span></div>
+        <div class="brand top-brand"><div class="brand-mark"><Utensils :size="18" /></div><span class="brand-copy"><span class="brand-name">diet<span class="brand-dot">.</span></span><span class="brand-version">v{{ appVersion }}</span></span></div>
         <div class="header-date">{{ fullDate(new Date()) }}</div>
         <div class="top-actions">
           <button class="icon-btn" @click="theme = theme === 'dark' ? 'light' : 'dark'" :title="t(theme === 'dark' ? 'light' : 'dark')"><Sun v-if="theme === 'dark'" /><Moon v-else /></button>
@@ -504,8 +527,8 @@ function storeName(storeId: string) {
               <h3>{{ meal.name }}</h3><p v-if="meal.description">{{ meal.description }}</p>
               <div class="tag-list"><span v-for="tag in meal.tags || []" :key="tag" class="nutrition-tag" :class="tag">{{ tagLabel(tag) }}</span></div>
               <div v-if="meal.ingredients.length" class="ingredient-preview">
-                <span v-for="ingredient in meal.ingredients" :key="`${ingredient.name}-${ingredient.storeId}`" class="ingredient-chip">
-                  {{ ingredient.name }}<small v-if="ingredient.quantity">{{ ingredient.quantity }}</small><small v-if="ingredient.storeId">· {{ storeName(ingredient.storeId) }}</small>
+                <span v-for="ingredient in meal.ingredients" :key="`${ingredient.name}-${ingredient.storeIds.join(',')}`" class="ingredient-chip">
+                  {{ ingredient.name }}<small v-if="ingredient.quantity">{{ ingredient.quantity }} g</small><small v-if="ingredient.storeIds.length">· {{ storeNames(ingredient.storeIds) }}</small>
                 </span>
               </div>
             </div>
@@ -566,7 +589,7 @@ function storeName(storeId: string) {
           <section v-for="group in shoppingGroups" :key="group.id || 'no-store'" class="shopping-store-group">
             <header class="shopping-store-heading"><StoreIcon :size="17" /><h2>{{ group.name }}</h2><span>{{ group.items.length }}</span></header>
             <article v-for="item in group.items" :key="item.key" class="shopping-item-row">
-              <div class="shopping-item-info"><h3>{{ item.name }}</h3><p><span v-if="item.quantity">{{ item.quantity }}</span><span v-if="!item.quantity && item.occurrences > 1">{{ item.occurrences }}×</span></p></div>
+              <div class="shopping-item-info"><h3>{{ item.name }}</h3><p><span v-if="item.quantity">{{ item.quantity }} g</span><span v-if="!item.quantity && item.occurrences > 1">{{ item.occurrences }}×</span></p></div>
               <div class="shopping-status-control" role="group" :aria-label="item.name">
                 <button :class="{ selected: item.status === 'home' }" @click="setShoppingStatus(item.key, 'home')"><House :size="14" /><span>{{ t('alreadyAtHome') }}</span></button>
                 <button :class="{ selected: item.status === 'bought' }" @click="setShoppingStatus(item.key, 'bought')"><Check :size="14" /><span>{{ t('bought') }}</span></button>
@@ -591,17 +614,19 @@ function storeName(storeId: string) {
             <div v-for="ingredient in form.ingredients" :key="ingredient.localId" class="ingredient-editor-row">
               <div class="ingredient-editor-fields">
                 <label class="form-field ingredient-name-field">{{ t('ingredientName') }}<input v-model="ingredient.name" required :placeholder="t('ingredientName')" /></label>
-                <label class="form-field ingredient-quantity-field">{{ t('quantity') }}<input v-model="ingredient.quantity" :placeholder="locale === 'it' ? 'es. 200 g' : 'e.g. 200 g'" /></label>
+                <label class="form-field ingredient-quantity-field">{{ t('quantity') }}
+                  <span class="quantity-input-wrap"><input :value="ingredient.quantity" type="number" min="0" step="any" inputmode="decimal" placeholder="200" @input="ingredient.quantity = ($event.target as HTMLInputElement).value" /><span class="quantity-unit">g</span></span>
+                </label>
               </div>
               <div class="store-picker-line">
                 <span class="field-caption">{{ t('store') }}</span>
                 <div class="custom-select-wrap store-select-wrap" @click.stop>
-                  <button type="button" class="custom-select-trigger" @click="togglePicker(`store-${ingredient.localId}`)">
-                    <span>{{ stores.find(store => store.id === ingredient.storeId)?.name || t('chooseStore') }}</span><ChevronRight class="select-chevron" :size="15" />
+                  <button type="button" class="custom-select-trigger" :aria-expanded="openPickerKey === `store-${ingredient.localId}`" @click="togglePicker(`store-${ingredient.localId}`)">
+                    <span>{{ storeSelectionLabel(ingredient.storeIds) }}</span><ChevronRight class="select-chevron" :size="15" />
                   </button>
                   <div v-if="openPickerKey === `store-${ingredient.localId}`" class="custom-select-menu">
-                    <button type="button" class="custom-select-option" :class="{ selected: !ingredient.storeId }" @click="pickStore(ingredient, '', `store-${ingredient.localId}`)">{{ t('noStore') }}</button>
-                    <button v-for="store in stores" :key="store.id" type="button" class="custom-select-option" :class="{ selected: ingredient.storeId === store.id }" @click="pickStore(ingredient, store.id, `store-${ingredient.localId}`)">{{ store.name }}</button>
+                    <button type="button" class="custom-select-option" :class="{ selected: !ingredient.storeIds.length }" @click="pickStore(ingredient, '')">{{ t('noStore') }}<Check v-if="!ingredient.storeIds.length" :size="14" /></button>
+                    <button v-for="store in stores" :key="store.id" type="button" class="custom-select-option multi-select-option" :class="{ selected: ingredient.storeIds.includes(store.id) }" @click="pickStore(ingredient, store.id)">{{ store.name }}<Check v-if="ingredient.storeIds.includes(store.id)" :size="14" /></button>
                   </div>
                 </div>
                 <button type="button" class="text-btn add-store-link" @click="addingStoreFor = addingStoreFor === ingredient.localId ? null : ingredient.localId"><Plus :size="14" />{{ t('addStore') }}</button>
