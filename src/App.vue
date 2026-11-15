@@ -4,7 +4,7 @@ import { onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut, type U
 import { collection, doc, getDoc, onSnapshot, setDoc, deleteDoc, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import { auth, db, googleProvider, firebaseConfigured } from './lib/firebase';
 import type { Meal, MealType, DayPlan } from './types';
-import { CalendarDays, ChefHat, Utensils, Plus, ChevronLeft, ChevronRight, Sun, Moon, Languages, Search, LogOut, X, Trash2, Pencil, Sparkles } from 'lucide-vue-next';
+import { CalendarDays, ChefHat, Utensils, Plus, ChevronLeft, ChevronRight, Sun, Moon, Languages, Search, LogOut, X, Trash2, Pencil, Sparkles } from '@lucide/vue';
 const {t,locale}=useI18n();
 const user=ref<User|null>(null), access=ref(false), checking=ref(true), authError=ref('');
 const meals=ref<Meal[]>([]), plans=ref<Record<string,DayPlan>>({}), activeTab=ref<'today'|'meals'|'plan'>('today');
