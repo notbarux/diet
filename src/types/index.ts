@@ -1,9 +1,12 @@
 export type MealType = 'breakfast' | 'lunch' | 'snack' | 'dinner'
+export type IngredientQuantityUnit = 'g' | 'unit'
 
 export interface MealIngredient {
   name: string
-  /** Numeric quantity expressed in grams; stored as a string for form binding. */
+  /** Numeric quantity; stored as a string for form binding. */
   quantity: string
+  /** Defaults to grams for documents created before unit selection was introduced. */
+  quantityUnit: IngredientQuantityUnit
   storeIds: string[]
   /** Legacy Firestore field; normalized to storeIds when reading old documents. */
   storeId?: string

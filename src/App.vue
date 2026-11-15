@@ -5,7 +5,7 @@ import packageJson from '../package.json'
 import { onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut, type User } from 'firebase/auth'
 import { collection, doc, getDoc, onSnapshot, orderBy, query, serverTimestamp, setDoc, deleteDoc } from 'firebase/firestore'
 import { auth, db, googleProvider, firebaseConfigured } from './lib/firebase'
-import type { DayPlan, Meal, MealIngredient, MealType, ShoppingStatus, Store } from './types'
+import type { DayPlan, IngredientQuantityUnit, Meal, MealIngredient, MealType, ShoppingStatus, Store } from './types'
 import {
   CalendarDays, ChefHat, Utensils, Plus, ChevronLeft, ChevronRight, Sun, Moon,
   Languages, Search, LogOut, X, Trash2, Pencil, Sparkles, ShoppingBasket,
@@ -84,31 +84,47 @@ function normalizeGramQuantity(value: unknown): string {
   if (typeof value !== 'string' && typeof value !== 'number') return ''
   const raw = String(value).trim()
   if (!raw) return ''
-  // Accept existing values such as "200 g" and normalize them to a number.
+  // Accept legacy values such as "200 g" or "0.5 kg" and normalize them to grams.
   const match = raw.match(/^([0-9]+(?:[.,][0-9]+)?)\s*(g|gr|grammi|grams|kg|kilogrammi|kilograms)?$/i)
   if (!match) return ''
   const amount = Number(match[1].replace(',', '.'))
   const grams = /^k/i.test(match[2] || '') ? amount * 1000 : amount
-  return String(Number(grams.toFixed(3)))
+  return Number.isFinite(grams) && grams >= 0 ? String(Number(grams.toFixed(3))) : ''
+}
+
+function normalizeUnitQuantity(value: unknown): string {
+  if (typeof value !== 'string' && typeof value !== 'number') return ''
+  const raw = String(value).trim()
+  if (!raw) return ''
+  const match = raw.match(/^([0-9]+(?:[.,][0-9]+)?)\s*(?:u|unit(?:à|a)?|units?|pcs?|pieces?|pezzi)?$/i)
+  if (!match) return ''
+  const amount = Number(match[1].replace(',', '.'))
+  return Number.isFinite(amount) && amount >= 0 ? String(Number(amount.toFixed(3))) : ''
+}
+
+function normalizeQuantity(value: unknown, unit: IngredientQuantityUnit): string {
+  return unit === 'unit' ? normalizeUnitQuantity(value) : normalizeGramQuantity(value)
 }
 
 function normalizedIngredients(raw: unknown): MealIngredient[] {
   if (!Array.isArray(raw)) return []
   return raw.map((item) => {
-    if (typeof item === 'string') return { name: item, quantity: '', storeIds: [] }
+    if (typeof item === 'string') return { name: item, quantity: '', quantityUnit: 'g' as const, storeIds: [] }
     if (item && typeof item === 'object') {
-      const ingredient = item as { name?: unknown; quantity?: unknown; storeId?: unknown; storeIds?: unknown }
+      const ingredient = item as { name?: unknown; quantity?: unknown; quantityUnit?: unknown; storeId?: unknown; storeIds?: unknown }
       const legacyStoreIds = typeof ingredient.storeId === 'string' && ingredient.storeId ? [ingredient.storeId] : []
       const storeIds = Array.isArray(ingredient.storeIds)
         ? ingredient.storeIds.filter((storeId): storeId is string => typeof storeId === 'string' && !!storeId)
         : legacyStoreIds
+      const quantityUnit: IngredientQuantityUnit = ingredient.quantityUnit === 'unit' ? 'unit' : 'g'
       return {
         name: typeof ingredient.name === 'string' ? ingredient.name : '',
-        quantity: normalizeGramQuantity(ingredient.quantity),
+        quantity: normalizeQuantity(ingredient.quantity, quantityUnit),
+        quantityUnit,
         storeIds: [...new Set(storeIds)],
       }
     }
-    return { name: '', quantity: '', storeIds: [] }
+    return { name: '', quantity: '', quantityUnit: 'g' as const, storeIds: [] }
   }).filter(item => item.name.trim())
 }
 
@@ -149,7 +165,10 @@ function subscribe() {
     stores.value = snapshot.docs.map(item => ({ id: item.id, name: String(item.data().name || '') }))
   })
   stopShopping = onSnapshot(doc(db, 'shoppingLists', 'current'), snapshot => {
-    shoppingStatuses.value = (snapshot.data()?.statuses || {}) as Record<string, ShoppingStatus>
+    const storedStatuses = (snapshot.data()?.statuses || {}) as Record<string, string>
+    shoppingStatuses.value = Object.fromEntries(
+      Object.entries(storedStatuses).map(([key, status]) => [key, status === 'todo' ? 'buy' : status]),
+    ) as Record<string, ShoppingStatus>
   })
 }
 
@@ -255,6 +274,18 @@ function storeSelectionLabel(storeIds: string[]): string {
   if (selectedCount === 1) return storeNames(storeIds) || t('chooseStores')
   return t('storesSelected', { count: selectedCount })
 }
+function quantityUnitShort(unit: IngredientQuantityUnit): string {
+  return unit === 'unit' ? t('quantityUnitPiecesShort') : 'g'
+}
+function quantityLabel(quantity: string, unit: IngredientQuantityUnit): string {
+  if (!quantity) return ''
+  const suffix = unit === 'unit' && locale.value === 'en' && Number(quantity) === 1 ? 'pc' : quantityUnitShort(unit)
+  return `${quantity} ${suffix}`
+}
+function pickQuantityUnit(ingredient: { quantityUnit: IngredientQuantityUnit }, unit: IngredientQuantityUnit) {
+  ingredient.quantityUnit = unit
+  closePicker()
+}
 
 function openMeal(meal?: Meal) {
   editing.value = meal || null
@@ -269,7 +300,7 @@ function openMeal(meal?: Meal) {
   modal.value = true
 }
 function addIngredient() {
-  form.value.ingredients.push({ localId: crypto.randomUUID(), name: '', quantity: '', storeIds: [] })
+  form.value.ingredients.push({ localId: crypto.randomUUID(), name: '', quantity: '', quantityUnit: 'g', storeIds: [] })
 }
 function removeIngredient(localId: string) {
   form.value.ingredients = form.value.ingredients.filter(ingredient => ingredient.localId !== localId)
@@ -279,7 +310,12 @@ async function saveMeal() {
   if (!db || !form.value.name.trim()) return
   const ingredients = form.value.ingredients
     .filter(ingredient => ingredient.name.trim())
-    .map(({ name, quantity, storeIds }) => ({ name: name.trim(), quantity: normalizeGramQuantity(quantity), storeIds: [...new Set(storeIds)] }))
+    .map(({ name, quantity, quantityUnit, storeIds }) => ({
+      name: name.trim(),
+      quantity: normalizeQuantity(quantity, quantityUnit),
+      quantityUnit,
+      storeIds: [...new Set(storeIds)],
+    }))
   const payload = {
     name: form.value.name.trim(),
     description: form.value.description.trim(),
@@ -378,18 +414,20 @@ const shoppingWeekDays = computed(() => {
   })
   return days.filter(date => dateKey(date) >= todayKey)
 })
-function shoppingItemKey(name: string, storeId: string) {
-  return `${selectedShoppingWeek.value}:${name.trim().toLocaleLowerCase()}:${storeId || 'none'}`
+function shoppingItemKey(name: string, storeId: string, unit: IngredientQuantityUnit) {
+  const baseKey = `${selectedShoppingWeek.value}:${name.trim().toLocaleLowerCase()}:${storeId || 'none'}`
+  // Keep legacy gram item keys stable so existing shopping statuses remain intact.
+  return unit === 'unit' ? `${baseKey}:unit` : baseKey
 }
 const selectedShoppingWeek = computed(() => dateKey(startOfWeek(new Date())))
-function combineQuantities(values: string[]) {
-  const quantities = values.map(value => Number(normalizeGramQuantity(value))).filter(value => Number.isFinite(value) && value > 0)
+function combineQuantities(values: string[], unit: IngredientQuantityUnit) {
+  const quantities = values.map(value => Number(normalizeQuantity(value, unit))).filter(value => Number.isFinite(value) && value > 0)
   if (!quantities.length) return ''
   const total = quantities.reduce((sum, value) => sum + value, 0)
   return String(Number(total.toFixed(3)))
 }
 const shoppingItems = computed(() => {
-  const aggregate = new Map<string, { key: string; name: string; storeId: string; quantities: string[]; occurrences: number }>()
+  const aggregate = new Map<string, { key: string; name: string; storeId: string; quantityUnit: IngredientQuantityUnit; quantities: string[]; occurrences: number }>()
   for (const date of shoppingWeekDays.value) {
     const day = plans.value[dateKey(date)]
     for (const planned of Object.values(day?.meals || {})) {
@@ -400,15 +438,16 @@ const shoppingItems = computed(() => {
         if (!name) continue
         // An ingredient can be sourced from more than one shop. Show it in each selected shop group.
         const assignedStoreIds = ingredient.storeIds.length ? ingredient.storeIds : ['']
+        const quantityUnit = ingredient.quantityUnit || 'g'
         for (const storeId of assignedStoreIds) {
-          const key = shoppingItemKey(name, storeId)
+          const key = shoppingItemKey(name, storeId, quantityUnit)
           const existing = aggregate.get(key)
           if (existing) {
             existing.occurrences += 1
             if (ingredient.quantity.trim()) existing.quantities.push(ingredient.quantity.trim())
           } else {
             aggregate.set(key, {
-              key, name, storeId,
+              key, name, storeId, quantityUnit,
               quantities: ingredient.quantity.trim() ? [ingredient.quantity.trim()] : [], occurrences: 1,
             })
           }
@@ -418,9 +457,9 @@ const shoppingItems = computed(() => {
   }
   return [...aggregate.values()].map(item => ({
     ...item,
-    quantity: combineQuantities(item.quantities),
+    quantity: combineQuantities(item.quantities, item.quantityUnit),
     storeName: stores.value.find(store => store.id === item.storeId)?.name || t('noStore'),
-    status: shoppingStatuses.value[item.key] || 'todo' as ShoppingStatus,
+    status: shoppingStatuses.value[item.key] || 'buy',
   })).sort((a, b) => a.storeName.localeCompare(b.storeName) || a.name.localeCompare(b.name))
 })
 const shoppingGroups = computed(() => {
@@ -528,7 +567,7 @@ function tagLabel(tag: string) {
               <div class="tag-list"><span v-for="tag in meal.tags || []" :key="tag" class="nutrition-tag" :class="tag">{{ tagLabel(tag) }}</span></div>
               <div v-if="meal.ingredients.length" class="ingredient-preview">
                 <span v-for="ingredient in meal.ingredients" :key="`${ingredient.name}-${ingredient.storeIds.join(',')}`" class="ingredient-chip">
-                  {{ ingredient.name }}<small v-if="ingredient.quantity">{{ ingredient.quantity }} g</small><small v-if="ingredient.storeIds.length">· {{ storeNames(ingredient.storeIds) }}</small>
+                  {{ ingredient.name }}<small v-if="ingredient.quantity">{{ quantityLabel(ingredient.quantity, ingredient.quantityUnit) }}</small><small v-if="ingredient.storeIds.length">· {{ storeNames(ingredient.storeIds) }}</small>
                 </span>
               </div>
             </div>
@@ -589,11 +628,11 @@ function tagLabel(tag: string) {
           <section v-for="group in shoppingGroups" :key="group.id || 'no-store'" class="shopping-store-group">
             <header class="shopping-store-heading"><StoreIcon :size="17" /><h2>{{ group.name }}</h2><span>{{ group.items.length }}</span></header>
             <article v-for="item in group.items" :key="item.key" class="shopping-item-row">
-              <div class="shopping-item-info"><h3>{{ item.name }}</h3><p><span v-if="item.quantity">{{ item.quantity }} g</span><span v-if="!item.quantity && item.occurrences > 1">{{ item.occurrences }}×</span></p></div>
+              <div class="shopping-item-info"><h3>{{ item.name }}</h3><p><span v-if="item.quantity">{{ quantityLabel(item.quantity, item.quantityUnit) }}</span><span v-if="!item.quantity && item.occurrences > 1">{{ item.occurrences }}×</span></p></div>
               <div class="shopping-status-control" role="group" :aria-label="item.name">
                 <button :class="{ selected: item.status === 'home' }" @click="setShoppingStatus(item.key, 'home')"><House :size="14" /><span>{{ t('alreadyAtHome') }}</span></button>
                 <button :class="{ selected: item.status === 'bought' }" @click="setShoppingStatus(item.key, 'bought')"><Check :size="14" /><span>{{ t('bought') }}</span></button>
-                <button :class="{ selected: item.status === 'todo' }" @click="setShoppingStatus(item.key, 'todo')"><ShoppingCart :size="14" /><span>{{ t('toBuy') }}</span></button>
+                <button :class="{ selected: item.status === 'buy' }" @click="setShoppingStatus(item.key, 'buy')"><ShoppingCart :size="14" /><span>{{ t('toBuy') }}</span></button>
               </div>
             </article>
           </section>
@@ -614,9 +653,17 @@ function tagLabel(tag: string) {
             <div v-for="ingredient in form.ingredients" :key="ingredient.localId" class="ingredient-editor-row">
               <div class="ingredient-editor-fields">
                 <label class="form-field ingredient-name-field">{{ t('ingredientName') }}<input v-model="ingredient.name" required :placeholder="t('ingredientName')" /></label>
-                <label class="form-field ingredient-quantity-field">{{ t('quantity') }}
-                  <span class="quantity-input-wrap"><input :value="ingredient.quantity" type="number" min="0" step="any" inputmode="decimal" placeholder="200" @input="ingredient.quantity = ($event.target as HTMLInputElement).value" /><span class="quantity-unit">g</span></span>
-                </label>
+                <div class="form-field ingredient-quantity-field">
+                  <span>{{ t('quantity') }}</span>
+                  <span class="quantity-input-wrap" @click.stop>
+                    <input :value="ingredient.quantity" :aria-label="t('quantity')" type="number" min="0" :step="ingredient.quantityUnit === 'unit' ? 1 : 'any'" :inputmode="ingredient.quantityUnit === 'unit' ? 'numeric' : 'decimal'" :placeholder="ingredient.quantityUnit === 'unit' ? '1' : '200'" @input="ingredient.quantity = ($event.target as HTMLInputElement).value" />
+                    <button type="button" class="quantity-unit quantity-unit-select" :aria-expanded="openPickerKey === `quantity-${ingredient.localId}`" @click="togglePicker(`quantity-${ingredient.localId}`)">{{ quantityUnitShort(ingredient.quantityUnit) }}<ChevronRight :size=12 /></button>
+                    <div v-if="openPickerKey === `quantity-${ingredient.localId}`" class="quantity-unit-menu">
+                      <button type="button" class="quantity-unit-option" :class="{ selected: ingredient.quantityUnit === 'g' }" @click="pickQuantityUnit(ingredient, 'g')">{{ t('quantityUnitGrams') }}<Check v-if="ingredient.quantityUnit === 'g'" :size=13 /></button>
+                      <button type="button" class="quantity-unit-option" :class="{ selected: ingredient.quantityUnit === 'unit' }" @click="pickQuantityUnit(ingredient, 'unit')">{{ t('quantityUnitPieces') }}<Check v-if="ingredient.quantityUnit === 'unit'" :size=13 /></button>
+                    </div>
+                  </span>
+                </div>
               </div>
               <div class="store-picker-line">
                 <span class="field-caption">{{ t('store') }}</span>
