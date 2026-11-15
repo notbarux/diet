@@ -652,7 +652,7 @@ function ingredientKeyFor(name: string): string {
       </div>
       <nav class="top-nav" aria-label="Main navigation">
         <button v-for="tab in ['today', 'meals', 'plan', 'shopping'] as const" :key="tab" :class="['top-nav-item', { active: activeTab === tab }]" @click="activeTab = tab">
-          <Sun v-if="tab === 'today'" /><ChefHat v-else-if="tab === 'meals'" /><CalendarDays v-else-if="tab === 'plan'" /><ShoppingBasket v-else />
+          <House v-if="tab === 'today'" /><ChefHat v-else-if="tab === 'meals'" /><CalendarDays v-else-if="tab === 'plan'" /><ShoppingBasket v-else />
           <span>{{ t(tab === 'today' ? 'home' : tab) }}</span>
         </button>
       </nav>
