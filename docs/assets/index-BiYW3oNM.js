@@ -3146,7 +3146,7 @@ This typically indicates that your device does not have a healthy Internet conne
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */Kr(gk,_k,"app");const Xa={apiKey:"AIzaSyApsoJQfyOGdk_mjXTDm-XRGEoOLNqC97Q",authDomain:"diet-67.firebaseapp.com",projectId:"diet-67",storageBucket:"diet-67.firebasestorage.app",messagingSenderId:"680276410340",appId:"1:680276410340:web:7a414f113cf43212ddd1f1"},pE=!!(Xa.apiKey&&Xa.projectId&&Xa.appId),Pl=pE?ty(Xa):null,Ys=Pl?rC(Pl):null,_t=Pl?ZP(Pl):null,yk=new _r;/**
+ */Kr(gk,_k,"app");const Xa={apiKey:void 0,authDomain:void 0,projectId:void 0,storageBucket:void 0,messagingSenderId:void 0,appId:void 0},pE=!!(Xa.apiKey&&Xa.projectId&&Xa.appId),Pl=pE?ty(Xa):null,Ys=Pl?rC(Pl):null,_t=Pl?ZP(Pl):null,yk=new _r;/**
  * @license @lucide/vue v1.73.0 - ISC
  *
  * This source code is licensed under the ISC license.
