@@ -124,7 +124,14 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .custom-select-menu { position: absolute; top: calc(100% + 7px); right: 0; left: 0; z-index: 60; max-height: 245px; overflow: auto; padding: 5px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-raised); box-shadow: var(--shadow); overscroll-behavior: contain; }
 .custom-select-option { width: 100%; display: block; padding: 10px 11px; border: 0; border-radius: 8px; color: var(--text); background: transparent; text-align: left; font-size: 11px; }
 .custom-select-option:hover, .custom-select-option.selected { color: var(--accent); background: var(--soft); }
-.today-meal-card > .custom-select-wrap { width: min(280px, 38%); flex: 0 0 min(280px, 38%); }
+.meal-picker-actions { min-width: 0; display: flex; align-items: center; gap: 7px; }
+.today-meal-card > .meal-picker-actions { width: min(320px, 43%); flex: 0 0 min(320px, 43%); }
+.today-picker-actions > .custom-select-wrap, .day-meal-picker-actions > .custom-select-wrap { min-width: 0; flex: 1 1 auto; }
+.clear-meal-btn { width: 36px; height: 36px; flex: 0 0 36px; border: 1px solid color-mix(in srgb, var(--danger) 72%, var(--line)); border-radius: 10px; color: var(--danger); background: color-mix(in srgb, var(--danger) 7%, transparent); }
+.clear-meal-btn:hover:not(:disabled) { border-color: var(--danger); color: var(--danger); background: color-mix(in srgb, var(--danger) 14%, transparent); }
+.clear-meal-btn:disabled { opacity: .28; cursor: not-allowed; }
+.day-meal-picker-actions .clear-meal-btn { width: 32px; height: 32px; flex-basis: 32px; border-radius: 9px; }
+.day-meal-picker-actions .clear-meal-btn svg { width: 14px; height: 14px; }
 
 /* Meals library. */
 .list-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-bottom: 14px; }
@@ -279,7 +286,8 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .today-meal-card { min-height: 120px; align-items: stretch; flex-direction: column; gap: 11px; padding: 13px; }
   .today-meal-info h3 { font-size: 15px; }
   .ingredient-summary { font-size: 10px; }
-  .today-meal-card > .custom-select-wrap { width: 100%; flex: 0 0 auto; }
+  .today-meal-card > .meal-picker-actions { width: 100%; flex: 0 0 auto; }
+  .today-picker-actions > .custom-select-wrap { flex: 1 1 auto; }
   .custom-select-trigger { min-height: 37px; }
   .list-toolbar { gap: 8px; }
   .search-box { width: 100%; min-height: 40px; }

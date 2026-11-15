@@ -3,7 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import packageJson from '../package.json'
 import { onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut, type User } from 'firebase/auth'
-import { collection, doc, getDoc, onSnapshot, orderBy, query, serverTimestamp, setDoc, deleteDoc } from 'firebase/firestore'
+import { collection, deleteDoc, deleteField, doc, getDoc, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
 import { auth, db, googleProvider, firebaseConfigured } from './lib/firebase'
 import type { DayPlan, IngredientQuantityUnit, Meal, MealIngredient, MealType, ShoppingStatus, Store } from './types'
 import {
@@ -255,6 +255,10 @@ function pickPlanMeal(date: Date, type: MealType, mealId: string) {
   void setPlan(date, type, mealId)
   closePicker()
 }
+function clearPlanMeal(date: Date, type: MealType) {
+  void setPlan(date, type, '')
+  closePicker()
+}
 function pickStore(ingredient: { storeIds: string[] }, storeId: string) {
   if (!storeId) {
     ingredient.storeIds = []
@@ -344,12 +348,25 @@ async function addStore(localId: string) {
 async function setPlan(date: Date, type: MealType, mealId: string) {
   if (!db) return
   const key = dateKey(date)
+  const planRef = doc(db, 'plan', key)
   const chosenMeal = meals.value.find(meal => meal.id === mealId)
-  const day = plans.value[key] || { id: key, date: key, meals: {} }
-  const nextMeals = { ...day.meals }
-  if (chosenMeal) nextMeals[type] = { mealId: chosenMeal.id, mealName: chosenMeal.name }
-  else delete nextMeals[type]
-  await setDoc(doc(db, 'plan', key), { date: key, meals: nextMeals }, { merge: true })
+
+  if (chosenMeal) {
+    const plannedMeal = { mealId: chosenMeal.id, mealName: chosenMeal.name }
+    if (plans.value[key]) {
+      // Update only this meal slot, avoiding overwriting concurrent changes to other slots.
+      await updateDoc(planRef, { [`meals.${type}`]: plannedMeal })
+    } else {
+      await setDoc(planRef, { date: key, meals: { [type]: plannedMeal } }, { merge: true })
+    }
+    return
+  }
+
+  // Firestore setDoc(..., { merge: true }) does not remove omitted nested map keys.
+  // deleteField() explicitly removes the selected meal, including on today's plan.
+  if (plans.value[key]?.meals?.[type]) {
+    await updateDoc(planRef, { [`meals.${type}`]: deleteField() })
+  }
 }
 function shiftWeek(delta: number) {
   const next = new Date(selectedDate.value)
@@ -539,14 +556,16 @@ function tagLabel(tag: string) {
                   {{ (meals.find(meal => meal.id === todayPlan.meals[type]?.mealId)?.ingredients || []).map(ingredient => ingredient.name).join(' · ') }}
                 </p>
               </div>
-              <div class="custom-select-wrap" @click.stop>
-                <button class="custom-select-trigger" :aria-expanded="openPickerKey === `today-${type}`" @click="togglePicker(`today-${type}`)">
-                  <span>{{ meals.find(meal => meal.id === todayPlan.meals[type]?.mealId)?.name || t('selectDish') }}</span><ChevronRight class="select-chevron" :size="16" />
-                </button>
-                <div v-if="openPickerKey === `today-${type}`" class="custom-select-menu">
-                  <button class="custom-select-option" :class="{ selected: !todayPlan.meals[type] }" @click="pickPlanMeal(new Date(), type, '')">{{ t('emptyDay') }}</button>
-                  <button v-for="meal in meals" :key="meal.id" class="custom-select-option" :class="{ selected: todayPlan.meals[type]?.mealId === meal.id }" @click="pickPlanMeal(new Date(), type, meal.id)">{{ meal.name }}</button>
+              <div class="meal-picker-actions today-picker-actions">
+                <div class="custom-select-wrap" @click.stop>
+                  <button class="custom-select-trigger" :aria-expanded="openPickerKey === `today-${type}`" @click="togglePicker(`today-${type}`)">
+                    <span>{{ meals.find(meal => meal.id === todayPlan.meals[type]?.mealId)?.name || t('selectDish') }}</span><ChevronRight class="select-chevron" :size="16" />
+                  </button>
+                  <div v-if="openPickerKey === `today-${type}`" class="custom-select-menu">
+                    <button v-for="meal in meals" :key="meal.id" class="custom-select-option" :class="{ selected: todayPlan.meals[type]?.mealId === meal.id }" @click="pickPlanMeal(dateFromKey(todayKey), type, meal.id)">{{ meal.name }}</button>
+                  </div>
                 </div>
+                <button type="button" class="icon-btn clear-meal-btn" :title="t('clearMeal')" :aria-label="t('clearMeal')" :disabled="!todayPlan.meals[type]" @click="clearPlanMeal(dateFromKey(todayKey), type)"><X :size="16" /></button>
               </div>
             </div>
           </article>
@@ -604,14 +623,16 @@ function tagLabel(tag: string) {
                 <div class="day-meal-detail">
                   <span class="day-meal-type">{{ t(type) }}</span>
                   <template v-if="!historyMode">
-                    <div class="custom-select-wrap day-meal-select" @click.stop>
-                      <button class="custom-select-trigger" :aria-expanded="openPickerKey === `plan-${dateKey(day)}-${type}`" @click="togglePicker(`plan-${dateKey(day)}-${type}`)">
-                        <span>{{ plans[dateKey(day)]?.meals[type]?.mealName || t('emptyDay') }}</span><ChevronRight class="select-chevron" :size="15" />
-                      </button>
-                      <div v-if="openPickerKey === `plan-${dateKey(day)}-${type}`" class="custom-select-menu">
-                        <button class="custom-select-option" :class="{ selected: !plans[dateKey(day)]?.meals[type] }" @click="pickPlanMeal(day, type, '')">{{ t('emptyDay') }}</button>
-                        <button v-for="meal in meals" :key="meal.id" class="custom-select-option" :class="{ selected: plans[dateKey(day)]?.meals[type]?.mealId === meal.id }" @click="pickPlanMeal(day, type, meal.id)">{{ meal.name }}</button>
+                    <div class="meal-picker-actions day-meal-picker-actions">
+                      <div class="custom-select-wrap day-meal-select" @click.stop>
+                        <button class="custom-select-trigger" :aria-expanded="openPickerKey === `plan-${dateKey(day)}-${type}`" @click="togglePicker(`plan-${dateKey(day)}-${type}`)">
+                          <span>{{ plans[dateKey(day)]?.meals[type]?.mealName || t('emptyDay') }}</span><ChevronRight class="select-chevron" :size="15" />
+                        </button>
+                        <div v-if="openPickerKey === `plan-${dateKey(day)}-${type}`" class="custom-select-menu">
+                          <button v-for="meal in meals" :key="meal.id" class="custom-select-option" :class="{ selected: plans[dateKey(day)]?.meals[type]?.mealId === meal.id }" @click="pickPlanMeal(day, type, meal.id)">{{ meal.name }}</button>
+                        </div>
                       </div>
+                      <button type="button" class="icon-btn clear-meal-btn" :title="t('clearMeal')" :aria-label="t('clearMeal')" :disabled="!plans[dateKey(day)]?.meals[type]" @click="clearPlanMeal(day, type)"><X :size="15" /></button>
                     </div>
                   </template>
                   <p v-else class="history-meal-name">{{ plans[dateKey(day)]?.meals[type]?.mealName || t('noMealSelected') }}</p>
