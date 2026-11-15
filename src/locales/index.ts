@@ -2,7 +2,7 @@ import { createI18n } from 'vue-i18n'
 
 const messages = {
   en: {
-    today: 'Today', meals: 'Meals', plan: 'Plan', shopping: 'Shopping',
+    home: 'Home', today: 'Today', tomorrow: 'Tomorrow', meals: 'Meals', plan: 'Plan', shopping: 'Shopping',
     breakfast: 'Breakfast', lunch: 'Lunch', snack: 'Snack', dinner: 'Dinner',
     addMeal: 'Add meal', editMeal: 'Edit meal', mealName: 'Meal name',
     averagePerWeek: 'Average per week', ingredients: 'Ingredients', ingredientsHelp: 'Ingredients for this meal',
@@ -28,7 +28,7 @@ const messages = {
     planWeekTitle: 'Weekly plan', storesHint: 'Add shops from the ingredient editor. Their global priority can be set here.',
   },
   it: {
-    today: 'Oggi', meals: 'Piatti', plan: 'Piano', shopping: 'Spesa',
+    home: 'Home', today: 'Oggi', tomorrow: 'Domani', meals: 'Piatti', plan: 'Piano', shopping: 'Spesa',
     breakfast: 'Colazione', lunch: 'Pranzo', snack: 'Merenda', dinner: 'Cena',
     addMeal: 'Aggiungi piatto', editMeal: 'Modifica piatto', mealName: 'Nome del piatto',
     averagePerWeek: 'Media settimanale', ingredients: 'Ingredienti', ingredientsHelp: 'Ingredienti del piatto',

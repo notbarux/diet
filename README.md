@@ -5,7 +5,7 @@ Applicazione client-side per organizzare i pasti quotidiani e settimanali. Stack
 ## Funzionalità
 
 - Login Google e allowlist Firestore per abilitare manualmente un solo account.
-- Sezioni **Today**, **Meals**, **Plan** e **Shopping**.
+- Sezioni **Home** (Today e Tomorrow), **Meals**, **Plan** e **Shopping**.
 - CRUD dei piatti basato su nome e ingredienti, con quantità in grammi o unità e associazione a più negozi.
 - Nella libreria piatti: utilizzo nella settimana corrente e media settimanale storica, calcolata dalla prima settimana in cui il piatto compare.
 - Pianificazione per colazione, pranzo, merenda e cena; navigazione settimanale con focus sul giorno selezionato e indicazione del giorno corrente.
@@ -65,7 +65,7 @@ npm run build
 npm run preview
 ```
 
-La build di produzione viene generata in `docs/`. Se type-check e build Vite terminano correttamente, `npm run build` esegue automaticamente anche commit e push: ripristina prima `docs/CNAME` al contenuto di `HEAD`, mette in stage tutte le altre modifiche e crea il commit `chore: build for v<versione>`, leggendo la versione da `package.json`. Il commit usa l'identità `notbarux <336620935+notbarux@users.noreply.github.com>`. Controlla le altre modifiche presenti nel working tree prima di lanciare la build.
+La build di produzione viene generata in `docs/`. Dopo il type-check, `npm run build` incrementa automaticamente la versione patch (ad esempio `1.6.0` → `1.6.1`), aggiorna `package.json` e `package-lock.json` e avvia Vite: la nuova versione viene quindi inclusa anche nell'interfaccia compilata. Se Vite fallisce, i due file di versione vengono ripristinati. Dopo una build riuscita, lo script post-build ripristina `docs/CNAME` al contenuto di `HEAD`, mette in stage tutte le altre modifiche e crea il commit `chore: build for v<versione>`, usando la versione aggiornata. Il commit usa l'identità `notbarux <336620935+notbarux@users.noreply.github.com>`. Controlla le altre modifiche presenti nel working tree prima di lanciare la build.
 
 Il file `.env.local` non va committato: configura le stesse variabili `VITE_FIREBASE_*` nell'ambiente in cui esegui la build. Le chiavi Firebase Web sono identificatori pubblici; la protezione dei dati è demandata alle regole Firestore e alla allowlist, non alla segretezza delle chiavi.
 

@@ -103,7 +103,12 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .text-btn { display: inline-flex; align-items: center; gap: 5px; border: 0; color: var(--accent); background: transparent; font-size: 12px; font-weight: 700; }
 
 /* Today and Plan use the same time-first visual language. */
-.today-page { max-width: 930px; padding-top: 14px; }
+.today-page, .home-page { max-width: 930px; padding-top: 14px; }
+.home-days { display: grid; gap: 28px; }
+.home-day-section { display: grid; gap: 12px; }
+.home-day-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.home-day-heading h1 { margin: 0; color: var(--text); font-size: clamp(22px, 2.7vw, 28px); font-weight: 800; letter-spacing: -.9px; }
+.home-day-heading > span { color: var(--muted); font: 10px 'IBM Plex Mono', monospace; text-transform: capitalize; }
 .today-schedule { display: grid; gap: 13px; }
 .today-meal-row { display: grid; grid-template-columns: 112px minmax(0, 1fr); align-items: stretch; gap: 13px; }
 .today-time-column { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; }

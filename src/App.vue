@@ -60,6 +60,9 @@ const mealTimes = ['10:00', '13:00', '16:00', '20:00']
 const today = new Date()
 const dateKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 const todayKey = dateKey(today)
+const tomorrowDate = new Date(today)
+tomorrowDate.setDate(tomorrowDate.getDate() + 1)
+const tomorrowKey = dateKey(tomorrowDate)
 const planStartDate = new Date(2026, 10, 16)
 const planStartKey = '2026-11-16'
 const planningReferenceDate = today < planStartDate ? planStartDate : today
@@ -100,6 +103,11 @@ const sortedMeals = computed(() => meals.value
   .filter(meal => meal.name.toLowerCase().includes(search.value.toLowerCase()))
   .sort((a, b) => a.name.localeCompare(b.name)))
 const todayPlan = computed(() => plans.value[todayKey] || { id: todayKey, date: todayKey, meals: {} } as DayPlan)
+const tomorrowPlan = computed(() => plans.value[tomorrowKey] || { id: tomorrowKey, date: tomorrowKey, meals: {} } as DayPlan)
+const homeDays = computed(() => [
+  { key: todayKey, date: today, title: t('today'), plan: todayPlan.value },
+  { key: tomorrowKey, date: tomorrowDate, title: t('tomorrow'), plan: tomorrowPlan.value },
+])
 const weekDays = computed(() => {
   const monday = startOfWeek(selectedDate.value)
   return Array.from({ length: 7 }, (_, index) => {
@@ -645,40 +653,47 @@ function ingredientKeyFor(name: string): string {
       <nav class="top-nav" aria-label="Main navigation">
         <button v-for="tab in ['today', 'meals', 'plan', 'shopping'] as const" :key="tab" :class="['top-nav-item', { active: activeTab === tab }]" @click="activeTab = tab">
           <Sun v-if="tab === 'today'" /><ChefHat v-else-if="tab === 'meals'" /><CalendarDays v-else-if="tab === 'plan'" /><ShoppingBasket v-else />
-          <span>{{ t(tab) }}</span>
+          <span>{{ t(tab === 'today' ? 'home' : tab) }}</span>
         </button>
       </nav>
     </header>
 
     <main class="main-content">
-      <!-- Today intentionally has no duplicate heading/date: the date is centered in the sticky header. -->
-      <section v-if="activeTab === 'today'" class="page today-page">
-        <div class="today-schedule">
-          <article v-for="(type, index) in mealTypes" :key="type" class="today-meal-row">
-            <div class="today-time-column">
-              <span class="today-meal-type-label">{{ t(type) }}</span>
-              <div class="meal-time"><Clock3 :size="16" /><span>{{ mealTimes[index] }}</span></div>
-            </div>
-            <div class="today-meal-card">
-              <div class="today-meal-info">
-                <h3>{{ todayPlan.meals[type]?.mealName || t('emptyDay') }}</h3>
-                <p v-if="todayPlan.meals[type]" class="ingredient-summary">
-                  {{ (meals.find(meal => meal.id === todayPlan.meals[type]?.mealId)?.ingredients || []).map(ingredient => ingredient.name).join(' · ') }}
-                </p>
-              </div>
-              <div class="meal-picker-actions today-picker-actions">
-                <div class="custom-select-wrap" @click.stop>
-                  <button class="custom-select-trigger" :aria-expanded="openPickerKey === `today-${type}`" @click="togglePicker(`today-${type}`)">
-                    <span>{{ todayPlan.meals[type]?.mealName || meals.find(meal => meal.id === todayPlan.meals[type]?.mealId)?.name || t('selectDish') }}</span><ChevronRight class="select-chevron" :size="16" />
-                  </button>
-                  <div v-if="openPickerKey === `today-${type}`" class="custom-select-menu">
-                    <button v-for="meal in meals" :key="meal.id" class="custom-select-option" :class="{ selected: todayPlan.meals[type]?.mealId === meal.id }" @click="pickPlanMeal(dateFromKey(todayKey), type, meal.id)">{{ meal.name }}</button>
+      <section v-if="activeTab === 'today'" class="page home-page">
+        <div class="home-days">
+          <section v-for="homeDay in homeDays" :key="homeDay.key" class="home-day-section">
+            <header class="home-day-heading">
+              <h1>{{ homeDay.title }}</h1>
+              <span>{{ fullDate(homeDay.date) }}</span>
+            </header>
+            <div class="today-schedule">
+              <article v-for="(type, index) in mealTypes" :key="type" class="today-meal-row">
+                <div class="today-time-column">
+                  <span class="today-meal-type-label">{{ t(type) }}</span>
+                  <div class="meal-time"><Clock3 :size="16" /><span>{{ mealTimes[index] }}</span></div>
+                </div>
+                <div class="today-meal-card">
+                  <div class="today-meal-info">
+                    <h3>{{ plannedMealName(homeDay.key, type) || t('emptyDay') }}</h3>
+                    <p v-if="homeDay.plan.meals[type]" class="ingredient-summary">
+                      {{ (meals.find(meal => meal.id === homeDay.plan.meals[type]?.mealId)?.ingredients || []).map(ingredient => ingredient.name).join(' · ') }}
+                    </p>
+                  </div>
+                  <div class="meal-picker-actions today-picker-actions">
+                    <div class="custom-select-wrap" @click.stop>
+                      <button class="custom-select-trigger" :aria-expanded="openPickerKey === `home-${homeDay.key}-${type}`" @click="togglePicker(`home-${homeDay.key}-${type}`)">
+                        <span>{{ plannedMealName(homeDay.key, type) || t('selectDish') }}</span><ChevronRight class="select-chevron" :size="16" />
+                      </button>
+                      <div v-if="openPickerKey === `home-${homeDay.key}-${type}`" class="custom-select-menu">
+                        <button v-for="meal in meals" :key="meal.id" class="custom-select-option" :class="{ selected: homeDay.plan.meals[type]?.mealId === meal.id }" @click="pickPlanMeal(homeDay.date, type, meal.id)">{{ meal.name }}</button>
+                      </div>
+                    </div>
+                    <button v-if="homeDay.plan.meals[type]" type="button" class="icon-btn clear-meal-btn" :title="t('clearMeal')" :aria-label="t('clearMeal')" @click="clearPlanMeal(homeDay.date, type)"><X :size="16" /></button>
                   </div>
                 </div>
-                <button v-if="todayPlan.meals[type]" type="button" class="icon-btn clear-meal-btn" :title="t('clearMeal')" :aria-label="t('clearMeal')" @click="clearPlanMeal(dateFromKey(todayKey), type)"><X :size="16" /></button>
-              </div>
+              </article>
             </div>
-          </article>
+          </section>
         </div>
       </section>
 

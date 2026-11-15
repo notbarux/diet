@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "vue-tsc -b && vite build && node scripts/post-build.mjs",
+    "build": "vue-tsc -b && node scripts/versioned-build.mjs && node scripts/post-build.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
