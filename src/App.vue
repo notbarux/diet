@@ -63,7 +63,10 @@ const todayKey = dateKey(today)
 const planStartDate = new Date(2026, 10, 16)
 const planStartKey = '2026-11-16'
 const planningReferenceDate = today < planStartDate ? planStartDate : today
-const selectedDate = ref(new Date(planningReferenceDate))
+const planDefaultDate = new Date(today)
+if (today.getDay() === 6) planDefaultDate.setDate(planDefaultDate.getDate() + 2)
+else if (today.getDay() === 0) planDefaultDate.setDate(planDefaultDate.getDate() + 1)
+const selectedDate = ref(new Date(planDefaultDate < planStartDate ? planStartDate : planDefaultDate))
 const shoppingWeekSelection = ref<'this' | 'next'>(today.getDay() === 0 || today.getDay() === 6 ? 'next' : 'this')
 const currentKey = computed(() => dateKey(selectedDate.value))
 const dateFromKey = (key: string) => {
