@@ -9,7 +9,7 @@ import type { DayPlan, IngredientQuantityUnit, Meal, MealIngredient, MealType, S
 import {
   CalendarDays, ChefHat, Utensils, Plus, ChevronLeft, ChevronRight, Sun, Moon,
   Languages, Search, LogOut, X, Trash2, Pencil, Sparkles, ShoppingBasket,
-  Check, History as HistoryIcon, Store as StoreIcon, House, ShoppingCart, Clock3,
+  Check, History as HistoryIcon, Store as StoreIcon, House, ShoppingCart, Clock3, SlidersHorizontal,
 } from '@lucide/vue'
 
 const { t, locale } = useI18n()
@@ -39,6 +39,8 @@ const form = ref({
 const addingStoreFor = ref<string | null>(null)
 const newStoreName = ref('')
 const shoppingStatuses = ref<Record<string, ShoppingStatus>>({})
+const storePreferences = ref<Record<string, string>>({})
+const storePriorityModal = ref(false)
 
 const mealTypes: MealType[] = ['breakfast', 'lunch', 'snack', 'dinner']
 const mealTimes = ['10:00', '13:00', '16:00', '20:00']
@@ -165,10 +167,15 @@ function subscribe() {
     stores.value = snapshot.docs.map(item => ({ id: item.id, name: String(item.data().name || '') }))
   })
   stopShopping = onSnapshot(doc(db, 'shoppingLists', 'current'), snapshot => {
-    const storedStatuses = (snapshot.data()?.statuses || {}) as Record<string, string>
+    const data = snapshot.data() || {}
+    const storedStatuses = (data.statuses || {}) as Record<string, string>
+    const storedPreferences = (data.storePreferences || {}) as Record<string, unknown>
     shoppingStatuses.value = Object.fromEntries(
       Object.entries(storedStatuses).map(([key, status]) => [key, status === 'todo' ? 'buy' : status]),
     ) as Record<string, ShoppingStatus>
+    storePreferences.value = Object.fromEntries(
+      Object.entries(storedPreferences).filter((entry): entry is [string, string] => typeof entry[1] === 'string' && !!entry[1]),
+    )
   })
 }
 
@@ -214,6 +221,7 @@ onMounted(() => {
     plans.value = {}
     stores.value = []
     shoppingStatuses.value = {}
+    storePreferences.value = {}
     if (currentUser) await checkAccess(currentUser)
     else checking.value = false
   })
@@ -444,7 +452,15 @@ function combineQuantities(values: string[], unit: IngredientQuantityUnit) {
   return String(Number(total.toFixed(3)))
 }
 const shoppingItems = computed(() => {
-  const aggregate = new Map<string, { key: string; name: string; storeId: string; quantityUnit: IngredientQuantityUnit; quantities: string[]; occurrences: number }>()
+  const aggregate = new Map<string, {
+    name: string
+    preferenceKey: string
+    quantityUnit: IngredientQuantityUnit
+    storeIds: Set<string>
+    quantities: string[]
+    occurrences: number
+  }>()
+
   for (const date of shoppingWeekDays.value) {
     const day = plans.value[dateKey(date)]
     for (const planned of Object.values(day?.meals || {})) {
@@ -453,31 +469,79 @@ const shoppingItems = computed(() => {
       for (const ingredient of meal?.ingredients || []) {
         const name = ingredient.name.trim()
         if (!name) continue
-        // An ingredient can be sourced from more than one shop. Show it in each selected shop group.
-        const assignedStoreIds = ingredient.storeIds.length ? ingredient.storeIds : ['']
         const quantityUnit = ingredient.quantityUnit || 'g'
-        for (const storeId of assignedStoreIds) {
-          const key = shoppingItemKey(name, storeId, quantityUnit)
-          const existing = aggregate.get(key)
-          if (existing) {
-            existing.occurrences += 1
-            if (ingredient.quantity.trim()) existing.quantities.push(ingredient.quantity.trim())
-          } else {
-            aggregate.set(key, {
-              key, name, storeId, quantityUnit,
-              quantities: ingredient.quantity.trim() ? [ingredient.quantity.trim()] : [], occurrences: 1,
-            })
-          }
+        const preferenceKey = preferenceKeyFor(name)
+        const aggregateKey = `${preferenceKey}:${quantityUnit}`
+        const existing = aggregate.get(aggregateKey)
+        if (existing) {
+          existing.occurrences += 1
+          ingredient.storeIds.forEach(storeId => existing.storeIds.add(storeId))
+          if (ingredient.quantity.trim()) existing.quantities.push(ingredient.quantity.trim())
+        } else {
+          aggregate.set(aggregateKey, {
+            name,
+            preferenceKey,
+            quantityUnit,
+            storeIds: new Set(ingredient.storeIds),
+            quantities: ingredient.quantity.trim() ? [ingredient.quantity.trim()] : [],
+            occurrences: 1,
+          })
         }
       }
     }
   }
-  return [...aggregate.values()].map(item => ({
-    ...item,
-    quantity: combineQuantities(item.quantities, item.quantityUnit),
-    storeName: stores.value.find(store => store.id === item.storeId)?.name || t('noStore'),
-    status: shoppingStatuses.value[item.key] || 'buy',
-  })).sort((a, b) => a.storeName.localeCompare(b.storeName) || a.name.localeCompare(b.name))
+
+  // Store options are collected across all planned occurrences of the same ingredient,
+  // including occurrences whose quantities use different units.
+  const storesByIngredient = new Map<string, Set<string>>()
+  for (const item of aggregate.values()) {
+    const ids = storesByIngredient.get(item.preferenceKey) || new Set<string>()
+    item.storeIds.forEach(storeId => ids.add(storeId))
+    storesByIngredient.set(item.preferenceKey, ids)
+  }
+
+  return [...aggregate.values()].map(item => {
+    const allStoreIds = storesByIngredient.get(item.preferenceKey) || item.storeIds
+    const availableStores = stores.value.filter(store => allStoreIds.has(store.id))
+    const savedPreference = storePreferences.value[item.preferenceKey]
+    const preferredStore = availableStores.find(store => store.id === savedPreference) || availableStores[0]
+    const storeId = preferredStore?.id || ''
+    const key = shoppingItemKey(item.name, storeId, item.quantityUnit)
+    return {
+      ...item,
+      storeIds: availableStores.map(store => store.id),
+      storeOptions: availableStores,
+      storeId,
+      storeName: preferredStore?.name || t('noStore'),
+      quantity: combineQuantities(item.quantities, item.quantityUnit),
+      key,
+      status: shoppingStatuses.value[key] || availableStores
+        .map(store => shoppingItemKey(item.name, store.id, item.quantityUnit))
+        .map(candidateKey => shoppingStatuses.value[candidateKey])
+        .find(Boolean) || 'buy',
+      preferredStoreLabel: savedPreference && availableStores.some(store => store.id === savedPreference)
+        ? (availableStores.find(store => store.id === savedPreference)?.name || t('automaticStore'))
+        : t('automaticStore'),
+    }
+  }).sort((a, b) => a.storeName.localeCompare(b.storeName) || a.name.localeCompare(b.name))
+})
+const multiStoreShoppingItems = computed(() => {
+  const unique = new Map<string, { preferenceKey: string; name: string; storeOptions: Store[] }>()
+  for (const item of shoppingItems.value) {
+    if (item.storeOptions.length < 2) continue
+    const existing = unique.get(item.preferenceKey)
+    if (existing) {
+      const ids = new Set(existing.storeOptions.map(store => store.id))
+      item.storeOptions.forEach(store => { if (!ids.has(store.id)) existing.storeOptions.push(store) })
+    } else {
+      unique.set(item.preferenceKey, {
+        preferenceKey: item.preferenceKey,
+        name: item.name,
+        storeOptions: [...item.storeOptions],
+      })
+    }
+  }
+  return [...unique.values()].sort((a, b) => a.name.localeCompare(b.name))
 })
 const shoppingGroups = computed(() => {
   const groups = new Map<string, typeof shoppingItems.value>()
@@ -499,6 +563,36 @@ async function setShoppingStatus(key: string, status: ShoppingStatus) {
     statuses: shoppingStatuses.value,
     updatedAt: serverTimestamp(),
   }, { merge: true })
+}
+async function setPreferredStore(preferenceKey: string, storeId: string) {
+  if (!db) return
+  const previous = storePreferences.value
+  const next = { ...previous }
+  if (storeId) next[preferenceKey] = storeId
+  else delete next[preferenceKey]
+  storePreferences.value = next
+  closePicker()
+  const shoppingRef = doc(db, 'shoppingLists', 'current')
+  try {
+    if (storeId) {
+      await setDoc(shoppingRef, {
+        storePreferences: { [preferenceKey]: storeId },
+        updatedAt: serverTimestamp(),
+      }, { merge: true })
+    } else if (previous[preferenceKey]) {
+      await updateDoc(shoppingRef, {
+        [`storePreferences.${preferenceKey}`]: deleteField(),
+        updatedAt: serverTimestamp(),
+      })
+    }
+  } catch (error) {
+    storePreferences.value = previous
+    console.error('Unable to save store preference:', error)
+  }
+}
+function preferenceKeyFor(name: string): string {
+  // URL encoding keeps map keys safe to use in Firestore field paths (no dots or slashes).
+  return encodeURIComponent(name.trim().toLocaleLowerCase()).replace(/\./g, '%2E')
 }
 function tagLabel(tag: string) {
   return t(tag)
@@ -644,7 +738,7 @@ function tagLabel(tag: string) {
       </section>
 
       <section v-else class="page shopping-page">
-        <div class="page-heading compact section-heading"><h1>{{ t('shopping') }}</h1></div>
+        <div class="page-heading compact section-heading shopping-page-heading"><h1>{{ t('shopping') }}</h1><button class="secondary-btn store-priority-trigger" @click="storePriorityModal = true"><SlidersHorizontal :size="16" />{{ t('storePriorities') }}<span v-if="multiStoreShoppingItems.length" class="priority-count">{{ multiStoreShoppingItems.length }}</span></button></div>
         <div v-if="shoppingItems.length" class="shopping-groups">
           <section v-for="group in shoppingGroups" :key="group.id || 'no-store'" class="shopping-store-group">
             <header class="shopping-store-heading"><StoreIcon :size="17" /><h2>{{ group.name }}</h2><span>{{ group.items.length }}</span></header>
@@ -661,6 +755,38 @@ function tagLabel(tag: string) {
         <div v-else class="empty-collection"><ShoppingBasket :size="30" /><h3>{{ t('shoppingEmpty') }}</h3><p class="muted">{{ t('shoppingEmptyHint') }}</p></div>
       </section>
     </main>
+
+    <div v-if="storePriorityModal" class="modal-backdrop" @click.self="storePriorityModal = false">
+      <section class="meal-modal store-priority-modal">
+        <div class="modal-header">
+          <div><p class="eyebrow">{{ t('shopping') }}</p><h2>{{ t('storePriorities') }}</h2><p class="modal-description">{{ t('storePrioritiesHint') }}</p></div>
+          <button class="icon-btn" :aria-label="t('close')" @click="storePriorityModal = false"><X /></button>
+        </div>
+        <div v-if="multiStoreShoppingItems.length" class="store-priority-list">
+          <article v-for="item in multiStoreShoppingItems" :key="item.preferenceKey" class="store-priority-row">
+            <div class="store-priority-item-info">
+              <h3>{{ item.name }}</h3>
+              <p>{{ item.storeOptions.map(store => store.name).join(' · ') }}</p>
+            </div>
+            <div class="custom-select-wrap priority-select-wrap" @click.stop>
+              <button class="custom-select-trigger" :aria-expanded="openPickerKey === `priority-${item.preferenceKey}`" @click="togglePicker(`priority-${item.preferenceKey}`)">
+                <span>{{ storePreferences[item.preferenceKey] ? (item.storeOptions.find(store => store.id === storePreferences[item.preferenceKey])?.name || t('automaticStore')) : t('automaticStore') }}</span><ChevronRight class="select-chevron" :size="15" />
+              </button>
+              <div v-if="openPickerKey === `priority-${item.preferenceKey}`" class="custom-select-menu">
+                <button class="custom-select-option" :class="{ selected: !storePreferences[item.preferenceKey] }" @click="setPreferredStore(item.preferenceKey, '')">{{ t('automaticStore') }}<Check v-if="!storePreferences[item.preferenceKey]" :size="14" /></button>
+                <button v-for="store in item.storeOptions" :key="store.id" class="custom-select-option multi-select-option" :class="{ selected: storePreferences[item.preferenceKey] === store.id }" @click="setPreferredStore(item.preferenceKey, store.id)">{{ store.name }}<Check v-if="storePreferences[item.preferenceKey] === store.id" :size="14" /></button>
+              </div>
+            </div>
+          </article>
+        </div>
+        <div v-else class="empty-priority-state">
+          <StoreIcon :size="26" />
+          <h3>{{ t('noMultiStoreItems') }}</h3>
+          <p>{{ t('noMultiStoreItemsHint') }}</p>
+        </div>
+        <div class="modal-actions"><button type="button" class="secondary-btn" @click="storePriorityModal = false">{{ t('close') }}</button></div>
+      </section>
+    </div>
 
     <div v-if="modal" class="modal-backdrop" @click.self="modal = false">
       <section class="meal-modal">
