@@ -1,11 +1,11 @@
 {
   "name": "diet-meal-planner",
   "private": true,
-  "version": "1.5.0",
+  "version": "1.6.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "vue-tsc -b && vite build",
+    "build": "vue-tsc -b && vite build && node scripts/post-build.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

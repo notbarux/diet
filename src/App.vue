@@ -33,8 +33,6 @@ const planScroller = ref<HTMLElement | null>(null)
 const openPickerKey = ref<string | null>(null)
 const form = ref({
   name: '',
-  description: '',
-  tags: [] as string[],
   ingredients: [] as Array<MealIngredient & { localId: string }>,
 })
 const addingStoreFor = ref<string | null>(null)
@@ -97,8 +95,41 @@ const weekDays = computed(() => {
     return day
   })
 })
-const frequencyFor = (mealId: string) => Object.values(plans.value).reduce((total, day) =>
-  total + Object.values(day.meals || {}).filter(planned => planned?.mealId === mealId).length, 0)
+const weekStartKey = dateKey(startOfWeek(today))
+const currentWeekEndDate = new Date(startOfWeek(today))
+currentWeekEndDate.setDate(currentWeekEndDate.getDate() + 6)
+const currentWeekEndKey = dateKey(currentWeekEndDate)
+const weekKeyFor = (key: string) => dateKey(startOfWeek(dateFromKey(key)))
+
+function thisWeekFrequencyFor(mealId: string): number {
+  return Object.entries(plans.value).reduce((total, [key, day]) => {
+    if (weekKeyFor(key) !== weekStartKey) return total
+    return total + Object.values(day.meals || {}).filter(planned => planned?.mealId === mealId).length
+  }, 0)
+}
+
+function averageFrequencyFor(mealId: string): number {
+  const matchingDays = Object.entries(plans.value)
+    .filter(([key, day]) => key <= currentWeekEndKey &&
+      Object.values(day.meals || {}).some(planned => planned?.mealId === mealId))
+    .sort(([a], [b]) => a.localeCompare(b))
+  if (!matchingDays.length) return 0
+
+  const firstWeekDate = startOfWeek(dateFromKey(matchingDays[0][0]))
+  const currentWeekDate = startOfWeek(today)
+  const firstUtcDay = Date.UTC(firstWeekDate.getFullYear(), firstWeekDate.getMonth(), firstWeekDate.getDate())
+  const currentUtcDay = Date.UTC(currentWeekDate.getFullYear(), currentWeekDate.getMonth(), currentWeekDate.getDate())
+  const elapsedWeeks = Math.floor((currentUtcDay - firstUtcDay) / (7 * 24 * 60 * 60 * 1000)) + 1
+  const totalOccurrences = matchingDays.reduce((total, [, day]) =>
+    total + Object.values(day.meals || {}).filter(planned => planned?.mealId === mealId).length, 0)
+  return Number((totalOccurrences / Math.max(1, elapsedWeeks)).toFixed(1))
+}
+
+function frequencyTone(value: number): 'low' | 'medium' | 'high' {
+  if (value >= 3) return 'high'
+  if (value >= 1.5) return 'medium'
+  return 'low'
+}
 
 function normalizeGramQuantity(value: unknown): string {
   if (typeof value !== 'string' && typeof value !== 'number') return ''
@@ -166,8 +197,6 @@ function subscribe() {
       return {
         id: item.id,
         name: String(data.name || ''),
-        description: String(data.description || ''),
-        tags: Array.isArray(data.tags) ? data.tags : [],
         ingredients: normalizedIngredients(data.ingredients),
         createdAt: data.createdAt,
       }
@@ -322,10 +351,8 @@ function openMeal(meal?: Meal) {
   editing.value = meal || null
   form.value = meal ? {
     name: meal.name,
-    description: meal.description || '',
-    tags: [...(meal.tags || [])],
     ingredients: normalizedIngredients(meal.ingredients).map(ingredient => ({ ...ingredient, localId: crypto.randomUUID() })),
-  } : { name: '', description: '', tags: [], ingredients: [] }
+  } : { name: '', ingredients: [] }
   addingStoreFor.value = null
   newStoreName.value = ''
   modal.value = true
@@ -349,13 +376,18 @@ async function saveMeal() {
     }))
   const payload = {
     name: form.value.name.trim(),
-    description: form.value.description.trim(),
-    tags: form.value.tags,
     ingredients,
     updatedAt: serverTimestamp(),
   }
-  if (editing.value) await setDoc(doc(db, 'meals', editing.value.id), payload, { merge: true })
-  else await setDoc(doc(db, 'meals', crypto.randomUUID()), { ...payload, createdAt: serverTimestamp() })
+  if (editing.value) {
+    await updateDoc(doc(db, 'meals', editing.value.id), {
+      ...payload,
+      description: deleteField(),
+      tags: deleteField(),
+    })
+  } else {
+    await setDoc(doc(db, 'meals', crypto.randomUUID()), { ...payload, createdAt: serverTimestamp() })
+  }
   modal.value = false
 }
 async function removeMeal(meal: Meal) {
@@ -601,9 +633,6 @@ function ingredientKeyFor(name: string): string {
   // URL encoding keeps the normalized ingredient identity safe for map keys.
   return encodeURIComponent(name.trim().toLocaleLowerCase()).replace(/\./g, '%2E')
 }
-function tagLabel(tag: string) {
-  return t(tag)
-}
 </script>
 
 <template>
@@ -660,13 +689,13 @@ function tagLabel(tag: string) {
               <div class="meal-picker-actions today-picker-actions">
                 <div class="custom-select-wrap" @click.stop>
                   <button class="custom-select-trigger" :aria-expanded="openPickerKey === `today-${type}`" @click="togglePicker(`today-${type}`)">
-                    <span>{{ meals.find(meal => meal.id === todayPlan.meals[type]?.mealId)?.name || t('selectDish') }}</span><ChevronRight class="select-chevron" :size="16" />
+                    <span>{{ todayPlan.meals[type] ? t('changeMeal') : t('selectDish') }}</span><ChevronRight class="select-chevron" :size="16" />
                   </button>
                   <div v-if="openPickerKey === `today-${type}`" class="custom-select-menu">
                     <button v-for="meal in meals" :key="meal.id" class="custom-select-option" :class="{ selected: todayPlan.meals[type]?.mealId === meal.id }" @click="pickPlanMeal(dateFromKey(todayKey), type, meal.id)">{{ meal.name }}</button>
                   </div>
                 </div>
-                <button type="button" class="icon-btn clear-meal-btn" :title="t('clearMeal')" :aria-label="t('clearMeal')" :disabled="!todayPlan.meals[type]" @click="clearPlanMeal(dateFromKey(todayKey), type)"><X :size="16" /></button>
+                <button v-if="todayPlan.meals[type]" type="button" class="icon-btn clear-meal-btn" :title="t('clearMeal')" :aria-label="t('clearMeal')" @click="clearPlanMeal(dateFromKey(todayKey), type)"><X :size="16" /></button>
               </div>
             </div>
           </article>
@@ -683,15 +712,23 @@ function tagLabel(tag: string) {
           <article v-for="(meal, index) in sortedMeals" :key="meal.id" class="meal-row">
             <div class="meal-row-number">{{ String(index + 1).padStart(2, '0') }}</div>
             <div class="meal-row-main">
-              <h3>{{ meal.name }}</h3><p v-if="meal.description">{{ meal.description }}</p>
-              <div class="tag-list"><span v-for="tag in meal.tags || []" :key="tag" class="nutrition-tag" :class="tag">{{ tagLabel(tag) }}</span></div>
+              <h3>{{ meal.name }}</h3>
               <div v-if="meal.ingredients.length" class="ingredient-preview">
                 <span v-for="ingredient in meal.ingredients" :key="`${ingredient.name}-${ingredient.storeIds.join(',')}`" class="ingredient-chip">
                   {{ ingredient.name }}<small v-if="ingredient.quantity">{{ quantityLabel(ingredient.quantity, ingredient.quantityUnit) }}</small><small v-if="ingredient.storeIds.length">· {{ storeNames(ingredient.storeIds) }}</small>
                 </span>
               </div>
             </div>
-            <div class="frequency"><div class="frequency-label">{{ t('timesPlanned') }}</div><strong>{{ frequencyFor(meal.id) }}</strong></div>
+            <div class="frequency">
+              <div class="frequency-metric">
+                <div class="frequency-label">{{ t('thisWeek') }}</div>
+                <strong :class="frequencyTone(thisWeekFrequencyFor(meal.id))">{{ thisWeekFrequencyFor(meal.id) }}</strong>
+              </div>
+              <div class="frequency-metric">
+                <div class="frequency-label">{{ t('averagePerWeek') }}</div>
+                <strong :class="frequencyTone(averageFrequencyFor(meal.id))">{{ averageFrequencyFor(meal.id) }}</strong>
+              </div>
+            </div>
             <div class="row-actions"><button class="icon-btn" :title="t('editMeal')" @click="openMeal(meal)"><Pencil /></button><button class="icon-btn danger" :title="t('delete')" @click="removeMeal(meal)"><Trash2 /></button></div>
           </article>
         </div>
@@ -727,13 +764,13 @@ function tagLabel(tag: string) {
                     <div class="meal-picker-actions day-meal-picker-actions">
                       <div class="custom-select-wrap day-meal-select" @click.stop>
                         <button class="custom-select-trigger" :aria-expanded="openPickerKey === `plan-${dateKey(day)}-${type}`" @click="togglePicker(`plan-${dateKey(day)}-${type}`)">
-                          <span>{{ plans[dateKey(day)]?.meals[type]?.mealName || t('emptyDay') }}</span><ChevronRight class="select-chevron" :size="15" />
+                          <span>{{ plans[dateKey(day)]?.meals[type] ? t('changeMeal') : t('selectDish') }}</span><ChevronRight class="select-chevron" :size="15" />
                         </button>
                         <div v-if="openPickerKey === `plan-${dateKey(day)}-${type}`" class="custom-select-menu">
                           <button v-for="meal in meals" :key="meal.id" class="custom-select-option" :class="{ selected: plans[dateKey(day)]?.meals[type]?.mealId === meal.id }" @click="pickPlanMeal(day, type, meal.id)">{{ meal.name }}</button>
                         </div>
                       </div>
-                      <button type="button" class="icon-btn clear-meal-btn" :title="t('clearMeal')" :aria-label="t('clearMeal')" :disabled="!plans[dateKey(day)]?.meals[type]" @click="clearPlanMeal(day, type)"><X :size="15" /></button>
+                      <button v-if="plans[dateKey(day)]?.meals[type]" type="button" class="icon-btn clear-meal-btn" :title="t('clearMeal')" :aria-label="t('clearMeal')" @click="clearPlanMeal(day, type)"><X :size="15" /></button>
                     </div>
                   </template>
                   <p v-else class="history-meal-name">{{ plans[dateKey(day)]?.meals[type]?.mealName || t('noMealSelected') }}</p>
@@ -800,7 +837,6 @@ function tagLabel(tag: string) {
         <div class="modal-header"><div><p class="eyebrow">MEAL LIBRARY</p><h2>{{ editing ? t('editMeal') : t('addMeal') }}</h2></div><button class="icon-btn" @click="modal = false"><X /></button></div>
         <form @submit.prevent="saveMeal">
           <label class="form-field">{{ t('mealName') }}<input v-model="form.name" required maxlength="90" autofocus /></label>
-          <label class="form-field">{{ t('description') }}<textarea v-model="form.description" rows="2" maxlength="300" /></label>
           <div class="ingredients-editor">
             <div class="ingredients-editor-heading"><h3>{{ t('ingredients') }}</h3><button type="button" class="secondary-btn small-btn" @click="addIngredient"><Plus :size="15" />{{ t('addIngredient') }}</button></div>
             <p v-if="!form.ingredients.length" class="empty-form-hint">{{ t('ingredientsEmpty') }}</p>
@@ -851,7 +887,6 @@ function tagLabel(tag: string) {
               </div>
             </div>
           </div>
-          <fieldset><legend>{{ t('tags') }}</legend><label v-for="tag in ['carbs', 'protein', 'fat']" :key="tag" class="check-label"><input v-model="form.tags" type="checkbox" :value="tag" /><span>{{ t(tag) }}</span></label></fieldset>
           <div class="modal-actions"><button type="button" class="secondary-btn" @click="modal = false">{{ t('cancel') }}</button><button class="primary-btn" type="submit">{{ t('save') }}</button></div>
         </form>
       </section>

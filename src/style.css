@@ -145,17 +145,16 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .meal-row-main { min-width: 0; flex: 1; }
 .meal-row-main h3 { margin: 0 0 5px; font-size: 16px; font-weight: 800; letter-spacing: -.35px; }
 .meal-row-main > p { margin: 0 0 8px; color: var(--muted); font-size: 11px; }
-.tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
-.nutrition-tag { padding: 4px 7px; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); background: var(--panel-soft); font-size: 9px; }
-.nutrition-tag.carbs { color: #d9bd87; }
-.nutrition-tag.protein { color: #9dd1bd; }
-.nutrition-tag.fat { color: #d7a6bf; }
 .ingredient-preview { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
 .ingredient-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 7px; border-radius: 6px; color: var(--muted); background: var(--panel-soft); font-size: 10px; }
 .ingredient-chip small { color: var(--accent); font: 10px 'IBM Plex Mono', monospace; }
-.frequency { width: 90px; flex: 0 0 90px; text-align: center; }
-.frequency-label { margin-bottom: 4px; color: var(--muted); font-size: 9px; }
+.frequency { width: 178px; flex: 0 0 178px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.frequency-metric { min-width: 0; text-align: center; }
+.frequency-label { min-height: 23px; margin-bottom: 4px; color: var(--muted); font-size: 9px; line-height: 1.25; }
 .frequency strong { color: var(--accent); font: 600 19px 'IBM Plex Mono', monospace; }
+.frequency strong.low { color: var(--success); }
+.frequency strong.medium { color: #d6b46f; }
+.frequency strong.high { color: var(--danger); }
 .row-actions { display: flex; gap: 3px; }
 .empty-collection { min-height: 240px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: var(--muted); text-align: center; }
 .empty-collection h3 { margin: 2px 0 0; color: var(--text); font-size: 16px; }
@@ -328,8 +327,9 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .meal-row-number { width: 18px; flex-basis: 18px; padding-top: 3px; }
   .meal-row-main { flex-basis: calc(100% - 30px); }
   .meal-row-main h3 { font-size: 15px; }
-  .frequency { width: auto; flex: 1; margin-left: 27px; text-align: left; }
-  .frequency-label { font-size: 8px; }
+  .frequency { width: auto; flex: 1; margin-left: 27px; gap: 8px; }
+  .frequency-metric { text-align: left; }
+  .frequency-label { min-height: 0; font-size: 8px; }
   .frequency strong { font-size: 16px; }
   .row-actions { gap: 1px; }
   .row-actions .icon-btn { width: 31px; height: 31px; }

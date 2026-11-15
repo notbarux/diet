@@ -5,8 +5,9 @@ Applicazione client-side per organizzare i pasti quotidiani e settimanali. Stack
 ## Funzionalità
 
 - Login Google e allowlist Firestore per abilitare manualmente un solo account.
-- Sezioni **Today**, **Meals** e **Plan**.
-- CRUD dei piatti con descrizione, tag nutrizionali e frequenza di scelta (1–5).
+- Sezioni **Today**, **Meals**, **Plan** e **Shopping**.
+- CRUD dei piatti basato su nome e ingredienti, con quantità in grammi o unità e associazione a più negozi.
+- Nella libreria piatti: utilizzo nella settimana corrente e media settimanale storica, calcolata dalla prima settimana in cui il piatto compare.
 - Pianificazione per colazione, pranzo, merenda e cena; navigazione settimanale con focus sul giorno selezionato e indicazione del giorno corrente.
 - Tema scuro predefinito e tema chiaro; preferenze salvate localmente.
 - Inglese predefinito e italiano selezionabile.
@@ -47,8 +48,10 @@ Il documento è la allowlist. Per revocare l'accesso imposta `enabled` a `false`
 ## 3. Schema Firestore
 
 - `users/{uid}`: `{ enabled: boolean }` — gestito manualmente dall'amministratore.
-- `meals/{mealId}`: `{ name, description, tags: string[], rating: number, createdAt, updatedAt }`.
+- `meals/{mealId}`: `{ name, ingredients: MealIngredient[], createdAt, updatedAt }`; le proprietà legacy `description` e `tags` non sono più utilizzate e vengono eliminate quando salvi un piatto esistente.
 - `plan/{YYYY-MM-DD}`: `{ date: string, meals: { breakfast?: { mealId, mealName }, lunch?: ..., snack?: ..., dinner?: ... } }`.
+- `stores/{storeId}`: `{ name: string, createdAt }`.
+- `shoppingLists/current`: `{ statuses: Record<string, ShoppingStatus>, storePriorityOrder: string[] }`; l'ordine dei negozi è globale e determina a quale negozio assegnare gli ingredienti disponibili in più posti.
 - `stores/{storeId}`: `{ name: string, createdAt }` — shop catalog managed from the ingredient editor.
 - `shoppingLists/current`: `{ statuses: Record<string, ShoppingStatus>, storePriorityOrder: string[] }` — shopping statuses and one global shop-priority order shared by all ingredients.
 
@@ -62,7 +65,9 @@ npm run build
 npm run preview
 ```
 
-La build di produzione viene generata in `docs/`. Il file `.env.local` non va committato: configura le stesse variabili `VITE_FIREBASE_*` nell'ambiente in cui esegui la build. Le chiavi Firebase Web sono identificatori pubblici; la protezione dei dati è demandata alle regole Firestore e alla allowlist, non alla segretezza delle chiavi.
+La build di produzione viene generata in `docs/`. Se type-check e build Vite terminano correttamente, `npm run build` esegue automaticamente anche commit e push: ripristina prima `docs/CNAME` al contenuto di `HEAD`, mette in stage tutte le altre modifiche e crea il commit `chore: build for v<versione>`, leggendo la versione da `package.json`. Il commit usa l'identità `notbarux <336620935+notbarux@users.noreply.github.com>`. Controlla le altre modifiche presenti nel working tree prima di lanciare la build.
+
+Il file `.env.local` non va committato: configura le stesse variabili `VITE_FIREBASE_*` nell'ambiente in cui esegui la build. Le chiavi Firebase Web sono identificatori pubblici; la protezione dei dati è demandata alle regole Firestore e alla allowlist, non alla segretezza delle chiavi.
 
 ## 5. Pubblicazione su GitHub Pages
 
@@ -72,7 +77,7 @@ La build di produzione viene generata in `docs/`. Il file `.env.local` non va co
 4. Aggiungi il dominio GitHub Pages agli Authorized domains di Firebase Authentication.
 5. Se il repository è pubblicato sotto `https://username.github.io/nome-repo/`, il `base: './'` già configurato permette di usare percorsi relativi per gli asset.
 
-Ogni modifica al codice richiede una nuova `npm run build` e il commit della cartella `docs/` aggiornata.
+Ogni `npm run build` aggiorna `docs/` e, se il build riesce, committa e pusha automaticamente le modifiche, escluso `docs/CNAME`.
 
 ## Note di sicurezza e limiti
 
