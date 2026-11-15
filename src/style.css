@@ -204,6 +204,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .shopping-status-control button.selected { color: var(--accent-ink); background: var(--accent); }
 .store-priority-modal { width: min(620px, 100%); }
 .store-priority-modal .modal-header { margin-bottom: 18px; }
+.store-priority-modal .modal-actions { margin-top: 14px; }
 .store-priority-modal .modal-header h2 { margin-bottom: 7px; }
 .modal-description { max-width: 470px; margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
 .store-priority-list { display: grid; gap: 8px; }
