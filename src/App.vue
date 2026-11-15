@@ -806,8 +806,8 @@ function tagLabel(tag: string) {
                     <input :value="ingredient.quantity" :aria-label="t('quantity')" type="number" min="0" :step="ingredient.quantityUnit === 'unit' ? 1 : 'any'" :inputmode="ingredient.quantityUnit === 'unit' ? 'numeric' : 'decimal'" :placeholder="ingredient.quantityUnit === 'unit' ? '1' : '200'" @input="ingredient.quantity = ($event.target as HTMLInputElement).value" />
                     <button type="button" class="quantity-unit quantity-unit-select" :aria-expanded="openPickerKey === `quantity-${ingredient.localId}`" @click="togglePicker(`quantity-${ingredient.localId}`)">{{ quantityUnitShort(ingredient.quantityUnit) }}<ChevronRight :size=12 /></button>
                     <div v-if="openPickerKey === `quantity-${ingredient.localId}`" class="quantity-unit-menu">
-                      <button type="button" class="quantity-unit-option" :class="{ selected: ingredient.quantityUnit === 'g' }" @click="pickQuantityUnit(ingredient, 'g')">{{ t('quantityUnitGrams') }}<Check v-if="ingredient.quantityUnit === 'g'" :size=13 /></button>
-                      <button type="button" class="quantity-unit-option" :class="{ selected: ingredient.quantityUnit === 'unit' }" @click="pickQuantityUnit(ingredient, 'unit')">{{ t('quantityUnitPieces') }}<Check v-if="ingredient.quantityUnit === 'unit'" :size=13 /></button>
+                      <button type="button" class="quantity-unit-option" :class="{ selected: ingredient.quantityUnit === 'g' }" @click="pickQuantityUnit(ingredient, 'g')"><span class="quantity-option-symbol">g</span><span class="quantity-option-label">{{ t('quantityUnitGrams') }}</span><Check v-if="ingredient.quantityUnit === 'g'" :size="14" /></button>
+                      <button type="button" class="quantity-unit-option" :class="{ selected: ingredient.quantityUnit === 'unit' }" @click="pickQuantityUnit(ingredient, 'unit')"><span class="quantity-option-symbol">{{ quantityUnitShort('unit') }}</span><span class="quantity-option-label">{{ t('quantityUnitPieces') }}</span><Check v-if="ingredient.quantityUnit === 'unit'" :size="14" /></button>
                     </div>
                   </span>
                 </div>
@@ -823,10 +823,22 @@ function tagLabel(tag: string) {
                     <button v-for="store in stores" :key="store.id" type="button" class="custom-select-option multi-select-option" :class="{ selected: ingredient.storeIds.includes(store.id) }" @click="pickStore(ingredient, store.id)">{{ store.name }}<Check v-if="ingredient.storeIds.includes(store.id)" :size="14" /></button>
                   </div>
                 </div>
-                <button type="button" class="text-btn add-store-link" @click="addingStoreFor = addingStoreFor === ingredient.localId ? null : ingredient.localId"><Plus :size="14" />{{ t('addStore') }}</button>
+                <button
+                  type="button"
+                  class="text-btn add-store-link"
+                  :class="{ active: addingStoreFor === ingredient.localId }"
+                  :aria-expanded="addingStoreFor === ingredient.localId"
+                  :aria-controls="`new-store-${ingredient.localId}`"
+                  :aria-label="addingStoreFor === ingredient.localId ? t('close') : t('addStore')"
+                  @click="addingStoreFor = addingStoreFor === ingredient.localId ? null : ingredient.localId"
+                >
+                  <X v-if="addingStoreFor === ingredient.localId" :size="14" />
+                  <Plus v-else :size="14" />
+                  <span>{{ t('addStore') }}</span>
+                </button>
                 <button type="button" class="icon-btn remove-ingredient" :title="t('remove')" @click="removeIngredient(ingredient.localId)"><Trash2 :size="15" /></button>
               </div>
-              <div v-if="addingStoreFor === ingredient.localId" class="new-store-form">
+              <div v-if="addingStoreFor === ingredient.localId" :id="`new-store-${ingredient.localId}`" class="new-store-form" role="region" :aria-label="t('addStore')">
                 <input v-model="newStoreName" :placeholder="t('newStore')" maxlength="60" @keydown.enter.prevent="addStore(ingredient.localId)" />
                 <button class="primary-btn small-btn" type="button" :disabled="!newStoreName.trim()" @click="addStore(ingredient.localId)">{{ t('saveStore') }}</button>
               </div>
