@@ -12,6 +12,7 @@ import type {
   MealIngredient,
   MealType,
   NutrientKey,
+  NutritionBasis,
   ShoppingStatus,
   Store,
 } from './types'
@@ -247,7 +248,7 @@ function normalizedIngredients(raw: unknown): MealIngredient[] {
         : legacyStoreIds
       const quantityUnit: IngredientQuantityUnit = ingredient.quantityUnit === 'unit' ? 'unit' : 'g'
       const nutrition = normalizeNutrition(ingredient.nutrition)
-      const nutritionBasis = ingredient.nutritionBasis === 'unit' ||
+      const nutritionBasis: NutritionBasis = ingredient.nutritionBasis === 'unit' ||
         (!ingredient.nutritionBasis && quantityUnit === 'unit') ? 'unit' : '100g'
       const nutritionSource = ingredient.nutritionSource === 'open-food-facts' || ingredient.nutritionSource === 'manual'
         ? ingredient.nutritionSource
