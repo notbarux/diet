@@ -5,7 +5,7 @@ Applicazione client-side per organizzare i pasti quotidiani e settimanali. Stack
 ## Funzionalità
 
 - Login Google e allowlist Firestore per abilitare manualmente un solo account.
-- Sezioni **Home** (Today e Tomorrow), **Meals**, **Plan** e **Shopping**.
+- Sezioni **Home** (pianificazione settimanale), **Meals** e **Shopping**.
 - CRUD dei piatti basato su nome e ingredienti, con quantità in grammi o unità e associazione a più negozi.
 - Nella libreria piatti: utilizzo nella settimana corrente e media settimanale storica, calcolata dalla prima settimana in cui il piatto compare.
 - Pianificazione per colazione, pranzo, merenda e cena; navigazione settimanale con focus sul giorno selezionato e indicazione del giorno corrente.

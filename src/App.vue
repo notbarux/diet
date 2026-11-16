@@ -7,9 +7,9 @@ import { collection, deleteDoc, deleteField, doc, getDoc, onSnapshot, orderBy, q
 import { auth, db, googleProvider, firebaseConfigured } from './lib/firebase'
 import type { DayPlan, IngredientQuantityUnit, Meal, MealIngredient, MealType, ShoppingStatus, Store } from './types'
 import {
-  CalendarDays, ChefHat, Utensils, Plus, ChevronLeft, ChevronRight, Sun, Moon,
+  ChefHat, Utensils, Plus, ChevronLeft, ChevronRight, Sun, Moon,
   Languages, Search, LogOut, X, Trash2, Pencil, Sparkles, ShoppingBasket,
-  Check, Store as StoreIcon, House, ShoppingCart, Clock3, SlidersHorizontal,
+  Check, Store as StoreIcon, House, ShoppingCart, SlidersHorizontal,
   ChevronUp, ChevronDown,
 } from '@lucide/vue'
 
@@ -22,7 +22,7 @@ const authError = ref('')
 const meals = ref<Meal[]>([])
 const stores = ref<Store[]>([])
 const plans = ref<Record<string, DayPlan>>({})
-const activeTab = ref<'today' | 'meals' | 'plan' | 'shopping'>('today')
+const activeTab = ref<'home' | 'meals' | 'shopping'>('home')
 const theme = ref<'dark' | 'light'>((localStorage.getItem('diet-theme') as 'dark' | 'light') || 'dark')
 const search = ref('')
 const modal = ref(false)
@@ -62,9 +62,6 @@ const mealTimes = ['10:00', '13:00', '16:00', '20:00']
 const today = new Date()
 const dateKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 const todayKey = dateKey(today)
-const tomorrowDate = new Date(today)
-tomorrowDate.setDate(tomorrowDate.getDate() + 1)
-const tomorrowKey = dateKey(tomorrowDate)
 const planStartDate = new Date(2026, 10, 16)
 const planStartKey = '2026-11-16'
 const planningReferenceDate = today < planStartDate ? planStartDate : today
@@ -104,12 +101,6 @@ const monthDay = (date: Date) => new Intl.DateTimeFormat(locale.value === 'it' ?
 const sortedMeals = computed(() => meals.value
   .filter(meal => meal.name.toLowerCase().includes(search.value.toLowerCase()))
   .sort((a, b) => a.name.localeCompare(b.name)))
-const todayPlan = computed(() => plans.value[todayKey] || { id: todayKey, date: todayKey, meals: {} } as DayPlan)
-const tomorrowPlan = computed(() => plans.value[tomorrowKey] || { id: tomorrowKey, date: tomorrowKey, meals: {} } as DayPlan)
-const homeDays = computed(() => [
-  { key: todayKey, date: today, title: t('today'), plan: todayPlan.value },
-  { key: tomorrowKey, date: tomorrowDate, title: t('tomorrow'), plan: tomorrowPlan.value },
-])
 const weekDays = computed(() => {
   const monday = startOfWeek(selectedDate.value)
   return Array.from({ length: 7 }, (_, index) => {
@@ -700,92 +691,17 @@ function ingredientKeyFor(name: string): string {
         </div>
       </div>
       <nav class="top-nav" aria-label="Main navigation">
-        <button v-for="tab in ['today', 'meals', 'plan', 'shopping'] as const" :key="tab" :class="['top-nav-item', { active: activeTab === tab }]" @click="activeTab = tab">
-          <House v-if="tab === 'today'" /><ChefHat v-else-if="tab === 'meals'" /><CalendarDays v-else-if="tab === 'plan'" /><ShoppingBasket v-else />
-          <span>{{ t(tab === 'today' ? 'home' : tab) }}</span>
+        <button v-for="tab in ['home', 'meals', 'shopping'] as const" :key="tab" :class="['top-nav-item', { active: activeTab === tab }]" @click="activeTab = tab">
+          <House v-if="tab === 'home'" /><ChefHat v-else-if="tab === 'meals'" /><ShoppingBasket v-else />
+          <span>{{ t(tab) }}</span>
         </button>
       </nav>
     </header>
 
     <main class="main-content">
-      <section v-if="activeTab === 'today'" class="page home-page">
-        <div class="home-days">
-          <section v-for="homeDay in homeDays" :key="homeDay.key" class="home-day-section">
-            <header class="home-day-heading">
-              <h1>{{ homeDay.title }}</h1>
-              <span>{{ fullDate(homeDay.date) }}</span>
-            </header>
-            <div class="today-schedule">
-              <article v-for="(type, index) in mealTypes" :key="type" class="today-meal-row">
-                <div class="today-time-column">
-                  <span class="today-meal-type-label">{{ t(type) }}</span>
-                  <div class="meal-time"><Clock3 :size="16" /><span>{{ mealTimes[index] }}</span></div>
-                </div>
-                <div class="today-meal-card">
-                  <div class="today-meal-info">
-                    <h3>{{ plannedMealName(homeDay.key, type) || t('emptyDay') }}</h3>
-                    <p v-if="homeDay.plan.meals[type]" class="ingredient-summary">
-                      {{ (meals.find(meal => meal.id === homeDay.plan.meals[type]?.mealId)?.ingredients || []).map(ingredient => ingredient.name).join(' · ') }}
-                    </p>
-                  </div>
-                  <div class="meal-picker-actions today-picker-actions">
-                    <div class="custom-select-wrap" @click.stop>
-                      <button class="custom-select-trigger" :aria-expanded="openPickerKey === `home-${homeDay.key}-${type}`" @click="togglePicker(`home-${homeDay.key}-${type}`, $event)">
-                        <span>{{ plannedMealName(homeDay.key, type) || t('selectDish') }}</span><ChevronRight class="select-chevron" :size="16" />
-                      </button>
-                      <Teleport to="body">
-                        <div v-if="openPickerKey === `home-${homeDay.key}-${type}`" class="custom-select-menu dropdown-menu-portal" :style="dropdownStyle" @click.stop>
-                          <button v-for="meal in meals" :key="meal.id" class="custom-select-option" :class="{ selected: homeDay.plan.meals[type]?.mealId === meal.id }" @click="pickPlanMeal(homeDay.date, type, meal.id)">{{ meal.name }}</button>
-                        </div>
-                      </Teleport>
-                    </div>
-                    <button v-if="homeDay.plan.meals[type]" type="button" class="icon-btn clear-meal-btn" :title="t('clearMeal')" :aria-label="t('clearMeal')" @click="clearPlanMeal(homeDay.date, type)"><X :size="16" /></button>
-                  </div>
-                </div>
-              </article>
-            </div>
-          </section>
-        </div>
-      </section>
-
-      <section v-else-if="activeTab === 'meals'" class="page">
-        <div class="page-heading compact section-heading meals-page-heading">
-          <h1>{{ t('meals') }}</h1>
-          <div class="meals-heading-actions">
-            <div class="search-box meals-search-box"><Search :size="17" /><input v-model="search" :placeholder="t('search')" /></div>
-            <button class="primary-btn" @click="openMeal()"><Plus :size="17" />{{ t('addMeal') }}</button>
-          </div>
-        </div>
-        <div v-if="sortedMeals.length" class="meals-list">
-          <article v-for="(meal, index) in sortedMeals" :key="meal.id" class="meal-row">
-            <div class="meal-row-number">{{ String(index + 1).padStart(2, '0') }}</div>
-            <div class="meal-row-main">
-              <h3>{{ meal.name }}</h3>
-              <div v-if="meal.ingredients.length" class="ingredient-preview">
-                <span v-for="ingredient in meal.ingredients" :key="`${ingredient.name}-${ingredient.storeIds.join(',')}`" class="ingredient-chip">
-                  {{ ingredient.name }}<small v-if="ingredient.quantity">{{ quantityLabel(ingredient.quantity, ingredient.quantityUnit) }}</small><small v-if="ingredient.storeIds.length">· {{ storeNames(ingredient.storeIds) }}</small>
-                </span>
-              </div>
-            </div>
-            <div class="frequency">
-              <div class="frequency-metric">
-                <div class="frequency-label">{{ t('thisWeek') }}</div>
-                <strong :class="frequencyTone(thisWeekFrequencyFor(meal.id))">{{ thisWeekFrequencyFor(meal.id) }}</strong>
-              </div>
-              <div class="frequency-metric">
-                <div class="frequency-label">{{ t('averagePerWeek') }}</div>
-                <strong :class="frequencyTone(averageFrequencyFor(meal.id))">{{ averageFrequencyFor(meal.id) }}</strong>
-              </div>
-            </div>
-            <div class="row-actions"><button class="icon-btn" :title="t('editMeal')" @click="openMeal(meal)"><Pencil /></button><button class="icon-btn danger" :title="t('delete')" @click="removeMeal(meal)"><Trash2 /></button></div>
-          </article>
-        </div>
-        <div v-else class="empty-collection"><div class="state-icon"><ChefHat /></div><h3>{{ t('noMeals') }}</h3><button class="text-btn" @click="openMeal()">{{ t('addMeal') }} +</button></div>
-      </section>
-
-      <section v-else-if="activeTab === 'plan'" class="page plan-page">
+      <section v-if="activeTab === 'home'" class="page plan-page">
         <div class="page-heading compact plan-heading section-heading">
-          <h1>{{ t('plan') }}</h1>
+          <h1>{{ t('home') }}</h1>
           <div class="plan-toolbar">
             <button class="icon-btn plan-arrow" :title="t('previous')" :disabled="!canGoToPreviousWeek" @click="shiftWeek(-1)"><ChevronLeft /></button>
             <button class="secondary-btn this-week-btn" @click="goToThisWeek">{{ t('thisWeek') }}</button>
@@ -825,6 +741,42 @@ function ingredientKeyFor(name: string): string {
             </div>
           </article>
         </div>
+      </section>
+
+
+      <section v-else-if="activeTab === 'meals'" class="page">
+        <div class="page-heading compact section-heading meals-page-heading">
+          <h1>{{ t('meals') }}</h1>
+          <div class="meals-heading-actions">
+            <div class="search-box meals-search-box"><Search :size="17" /><input v-model="search" :placeholder="t('search')" /></div>
+            <button class="primary-btn" @click="openMeal()"><Plus :size="17" />{{ t('addMeal') }}</button>
+          </div>
+        </div>
+        <div v-if="sortedMeals.length" class="meals-list">
+          <article v-for="(meal, index) in sortedMeals" :key="meal.id" class="meal-row">
+            <div class="meal-row-number">{{ String(index + 1).padStart(2, '0') }}</div>
+            <div class="meal-row-main">
+              <h3>{{ meal.name }}</h3>
+              <div v-if="meal.ingredients.length" class="ingredient-preview">
+                <span v-for="ingredient in meal.ingredients" :key="`${ingredient.name}-${ingredient.storeIds.join(',')}`" class="ingredient-chip">
+                  {{ ingredient.name }}<small v-if="ingredient.quantity">{{ quantityLabel(ingredient.quantity, ingredient.quantityUnit) }}</small><small v-if="ingredient.storeIds.length">· {{ storeNames(ingredient.storeIds) }}</small>
+                </span>
+              </div>
+            </div>
+            <div class="frequency">
+              <div class="frequency-metric">
+                <div class="frequency-label">{{ t('thisWeek') }}</div>
+                <strong :class="frequencyTone(thisWeekFrequencyFor(meal.id))">{{ thisWeekFrequencyFor(meal.id) }}</strong>
+              </div>
+              <div class="frequency-metric">
+                <div class="frequency-label">{{ t('averagePerWeek') }}</div>
+                <strong :class="frequencyTone(averageFrequencyFor(meal.id))">{{ averageFrequencyFor(meal.id) }}</strong>
+              </div>
+            </div>
+            <div class="row-actions"><button class="icon-btn" :title="t('editMeal')" @click="openMeal(meal)"><Pencil /></button><button class="icon-btn danger" :title="t('delete')" @click="removeMeal(meal)"><Trash2 /></button></div>
+          </article>
+        </div>
+        <div v-else class="empty-collection"><div class="state-icon"><ChefHat /></div><h3>{{ t('noMeals') }}</h3><button class="text-btn" @click="openMeal()">{{ t('addMeal') }} +</button></div>
       </section>
 
       <section v-else class="page shopping-page">
