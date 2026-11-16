@@ -247,7 +247,8 @@ function normalizedIngredients(raw: unknown): MealIngredient[] {
         : legacyStoreIds
       const quantityUnit: IngredientQuantityUnit = ingredient.quantityUnit === 'unit' ? 'unit' : 'g'
       const nutrition = normalizeNutrition(ingredient.nutrition)
-      const nutritionBasis = ingredient.nutritionBasis === 'unit' ? 'unit' : '100g'
+      const nutritionBasis = ingredient.nutritionBasis === 'unit' ||
+        (!ingredient.nutritionBasis && quantityUnit === 'unit') ? 'unit' : '100g'
       const nutritionSource = ingredient.nutritionSource === 'open-food-facts' || ingredient.nutritionSource === 'manual'
         ? ingredient.nutritionSource
         : undefined
@@ -982,9 +983,12 @@ function ingredientKeyFor(name: string): string {
                 <article v-for="meal in day.meals" :key="meal.type" class="insight-meal-row">
                   <div class="insight-meal-title"><span>{{ t(meal.type) }}</span><strong>{{ meal.name }}</strong></div>
                   <div class="insight-nutrient-values">
-                    <span v-for="metric in nutrientMetrics" :key="metric.key"><small>{{ metric.shortLabel }}</small><strong>{{ formatNutritionValue(meal.nutrition[metric.key].value, metric.unit) }}</strong></span>
+                    <span v-for="metric in nutrientMetrics" :key="metric.key">
+                      <small>{{ metric.shortLabel }}</small>
+                      <strong>{{ formatNutritionValue(meal.nutrition[metric.key].value, metric.unit) }}</strong>
+                      <em>{{ meal.nutrition[metric.key].knownIngredients }}/{{ meal.nutrition[metric.key].totalIngredients }}</em>
+                    </span>
                   </div>
-                  <p class="insight-coverage">{{ nutritionCoverageText(meal.nutrition.calories) }}</p>
                 </article>
               </div>
               <p v-else class="insight-empty-day">{{ t('noMealsPlanned') }}</p>
@@ -997,9 +1001,12 @@ function ingredientKeyFor(name: string): string {
             <article v-for="dish in dishNutrition" :key="dish.id" class="insight-dish-card">
               <h3>{{ dish.name }}</h3>
               <div v-if="dish.hasNutrition" class="insight-nutrient-values dish-nutrient-values">
-                <span v-for="metric in nutrientMetrics" :key="metric.key"><small>{{ metric.shortLabel }}</small><strong>{{ formatNutritionValue(dish.nutrition[metric.key].value, metric.unit) }}</strong></span>
+                <span v-for="metric in nutrientMetrics" :key="metric.key">
+                  <small>{{ metric.shortLabel }}</small>
+                  <strong>{{ formatNutritionValue(dish.nutrition[metric.key].value, metric.unit) }}</strong>
+                  <em>{{ dish.nutrition[metric.key].knownIngredients }}/{{ dish.nutrition[metric.key].totalIngredients }}</em>
+                </span>
               </div>
-              <p class="insight-coverage">{{ dish.hasNutrition ? nutritionCoverageText(dish.nutrition.calories) : t('nutritionMissing') }}</p>
             </article>
           </div>
           <div v-else class="empty-collection"><ChefHat :size="28" /><h3>{{ t('noMeals') }}</h3></div>
@@ -1164,7 +1171,7 @@ function ingredientKeyFor(name: string): string {
                       <input type="number" min="0" step="any" :value="ingredient.nutrition?.[metric.key] ?? ''" @input="setIngredientNutrition(ingredient, metric.key, $event)" />
                     </label>
                   </div>
-                  <p class="nutrition-editor-hint">{{ t('nutritionEntryHint') }}</p>
+                  <p class="nutrition-editor-hint">{{ t('nutritionEntryHint') }} {{ t('nutritionBasisChangeHint') }}</p>
                 </div>
               </details>
             </div>

@@ -270,6 +270,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .insight-nutrient-values > span { min-width: 0; display: grid; gap: 3px; }
 .insight-nutrient-values small { color: var(--muted); font-size: 8px; font-weight: 700; }
 .insight-nutrient-values strong { overflow: hidden; color: var(--text); font: 600 10px 'IBM Plex Mono', monospace; text-overflow: ellipsis; white-space: nowrap; }
+.insight-nutrient-values em { color: var(--muted); font: normal 8px 'IBM Plex Mono', monospace; }
 .insight-coverage { grid-column: 2; margin: -5px 0 0; }
 .insight-empty-day { margin: 0; padding: 14px; color: var(--muted); font-size: 10px; }
 .insights-dish-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
