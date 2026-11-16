@@ -511,6 +511,15 @@ function formatNutritionValue(value: number | null, unit: string): string {
   const rounded = unit === 'kcal' ? Math.round(value) : Number(value.toFixed(1))
   return `${new Intl.NumberFormat(locale.value === 'it' ? 'it-IT' : 'en-US').format(rounded)} ${unit}`
 }
+function changeIngredientNutritionBasis(ingredient: MealIngredient, event: Event) {
+  const basis = (event.target as HTMLSelectElement).value
+  if (basis !== '100g' && basis !== 'unit') return
+  if (ingredient.nutritionBasis === basis) return
+  ingredient.nutritionBasis = basis
+  ingredient.nutrition = undefined
+  ingredient.nutritionSource = undefined
+  ingredient.nutritionProductName = undefined
+}
 function nutritionCoverageText(metric: { value: number | null; knownIngredients: number; totalIngredients: number }): string {
   if (!metric.totalIngredients || !metric.knownIngredients) return t('nutritionMissing')
   if (metric.knownIngredients < metric.totalIngredients) {
@@ -973,7 +982,7 @@ function ingredientKeyFor(name: string): string {
                 <article v-for="meal in day.meals" :key="meal.type" class="insight-meal-row">
                   <div class="insight-meal-title"><span>{{ t(meal.type) }}</span><strong>{{ meal.name }}</strong></div>
                   <div class="insight-nutrient-values">
-                    <span v-for="metric in nutrientMetrics" :key="metric.key><small>{{ metric.shortLabel }}</small><strong>{{ formatNutritionValue(meal.nutrition[metric.key].value, metric.unit) }}</strong></span>
+                    <span v-for="metric in nutrientMetrics" :key="metric.key"><small>{{ metric.shortLabel }}</small><strong>{{ formatNutritionValue(meal.nutrition[metric.key].value, metric.unit) }}</strong></span>
                   </div>
                   <p class="insight-coverage">{{ nutritionCoverageText(meal.nutrition.calories) }}</p>
                 </article>
@@ -1135,7 +1144,7 @@ function ingredientKeyFor(name: string): string {
                 <div class="nutrition-editor-content">
                   <div class="nutrition-basis-row">
                     <label :for="'nutrition-basis-' + ingredient.localId">{{ t('nutritionBasis') }}</label>
-                    <select :id="'nutrition-basis-' + ingredient.localId" v-model="ingredient.nutritionBasis">
+                    <select :id="'nutrition-basis-' + ingredient.localId" :value="ingredient.nutritionBasis || '100g'" @change="changeIngredientNutritionBasis(ingredient, $event)">
                       <option value="100g">{{ t('per100g') }}</option><option value="unit">{{ t('perUnit') }}</option>
                     </select>
                   </div>
@@ -1150,14 +1159,15 @@ function ingredientKeyFor(name: string): string {
                   <p v-if="ingredient.nutritionProductName" class="nutrition-data-source">{{ t('barcodeProductSource', { product: ingredient.nutritionProductName }) }}</p>
                   <p v-if="(ingredient.nutritionBasis === '100g' && ingredient.quantityUnit === 'unit') || (ingredient.nutritionBasis === 'unit' && ingredient.quantityUnit === 'g')" class="nutrition-unit-warning">{{ t('nutritionUnitMismatch') }}</p>
                   <div class="nutrition-input-grid">
-                    <label v-for="metric in nutrientMetrics" :key="metric.key>
+                    <label v-for="metric in nutrientMetrics" :key="metric.key">
                       <span>{{ metric.label }} <small>({{ metric.unit }})</small></span>
                       <input type="number" min="0" step="any" :value="ingredient.nutrition?.[metric.key] ?? ''" @input="setIngredientNutrition(ingredient, metric.key, $event)" />
                     </label>
                   </div>
                   <p class="nutrition-editor-hint">{{ t('nutritionEntryHint') }}</p>
                 </div>
-              </details>            </div>
+              </details>
+            </div>
           </div>
           <div class="modal-actions"><button type="button" class="secondary-btn" @click="modal = false">{{ t('cancel') }}</button><button class="primary-btn" type="submit">{{ t('save') }}</button></div>
         </form>

@@ -51,7 +51,7 @@ export function readOpenFoodFactsNutrition(productRaw: unknown): { productName: 
     (item): item is Record<string, unknown> => !!item,
   )
   const per100g = sets.find(item => {
-    const per = typeof item.per === 'string' ? item.per.toLowerCase().replace(/\\s/g, '') : '100g'
+    const per = typeof item.per === 'string' ? item.per.toLowerCase().replace(/\s/g, '') : '100g'
     return per === '100g'
   })
   const nestedNutrients = asRecord(per100g?.nutrients) || {}
