@@ -150,6 +150,8 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .meal-row-number { width: 26px; flex: 0 0 26px; color: var(--muted); font: 11px 'IBM Plex Mono', monospace; }
 .meal-row-main { min-width: 0; flex: 1; }
 .meal-row-main h3 { margin: 0 0 5px; font-size: 16px; font-weight: 800; letter-spacing: -.35px; }
+.meal-row-main h3.meal-title { display: flex; align-items: center; gap: 7px; }
+.meal-nutrition-indicator { display: inline-flex; align-items: center; justify-content: center; color: var(--success); cursor: help; }
 .meal-row-main > p { margin: 0 0 8px; color: var(--muted); font-size: 11px; }
 .ingredient-preview { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
 .ingredient-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 7px; border-radius: 6px; color: var(--muted); background: var(--panel-soft); font-size: 10px; }
@@ -326,6 +328,8 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .add-store-link:focus-visible, .quantity-unit-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .remove-ingredient { flex: 0 0 32px; width: 32px; height: 32px; }
 .ingredient-nutrition-editor { min-width: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--panel-soft); }
+.ingredient-nutrition-editor.has-nutrition { border-color: var(--success); }
+.ingredient-nutrition-editor.missing-nutrition { border-color: var(--danger); }
 .ingredient-nutrition-editor > summary { min-height: 40px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 11px; color: var(--text); font-size: 11px; font-weight: 800; cursor: pointer; list-style: none; }
 .ingredient-nutrition-editor > summary::-webkit-details-marker { display: none; }
 .ingredient-nutrition-editor > summary::after { content: '+'; color: var(--accent); font: 700 17px 'IBM Plex Mono', monospace; }

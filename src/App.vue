@@ -159,7 +159,7 @@ const dishNutrition = computed(() => meals.value.map(meal => ({
   id: meal.id,
   name: meal.name,
   nutrition: summarizeNutrition(meal.ingredients),
-  hasNutrition: meal.ingredients.some(ingredient => !!normalizeNutrition(ingredient.nutrition)),
+  hasNutrition: mealHasNutrition(meal),
 })))
 const insightWeekRange = computed(() =>
   `${monthDay(weekDays.value[0])} – ${monthDay(weekDays.value[6])}`,
@@ -487,6 +487,12 @@ function quantityLabel(quantity: string, unit: IngredientQuantityUnit): string {
   if (!quantity) return ''
   const suffix = unit === 'unit' && locale.value === 'en' && Number(quantity) === 1 ? 'pc' : quantityUnitShort(unit)
   return `${quantity} ${suffix}`
+}
+function ingredientHasNutrition(ingredient: Pick<MealIngredient, 'nutrition'>): boolean {
+  return !!normalizeNutrition(ingredient.nutrition)
+}
+function mealHasNutrition(meal: Pick<Meal, 'ingredients'>): boolean {
+  return meal.ingredients.some(ingredientHasNutrition)
 }
 function pickQuantityUnit(
   ingredient: Pick<MealIngredient, 'quantityUnit' | 'nutrition' | 'nutritionBasis'>,
@@ -932,7 +938,12 @@ function ingredientKeyFor(name: string): string {
           <article v-for="(meal, index) in sortedMeals" :key="meal.id" class="meal-row">
             <div class="meal-row-number">{{ String(index + 1).padStart(2, '0') }}</div>
             <div class="meal-row-main">
-              <h3>{{ meal.name }}</h3>
+              <h3 class="meal-title">
+                {{ meal.name }}
+                <span v-if="mealHasNutrition(meal)" class="meal-nutrition-indicator" :title="t('nutritionValuesPresent')" :aria-label="t('nutritionValuesPresent')" role="img">
+                  <Check :size="15" />
+                </span>
+              </h3>
               <div v-if="meal.ingredients.length" class="ingredient-preview">
                 <span v-for="ingredient in meal.ingredients" :key="`${ingredient.name}-${ingredient.storeIds.join(',')}`" class="ingredient-chip">
                   {{ ingredient.name }}<small v-if="ingredient.quantity">{{ quantityLabel(ingredient.quantity, ingredient.quantityUnit) }}</small><small v-if="ingredient.storeIds.length">· {{ storeNames(ingredient.storeIds) }}</small>
@@ -1148,7 +1159,7 @@ function ingredientKeyFor(name: string): string {
                 <input v-model="newStoreName" :placeholder="t('newStore')" maxlength="60" @keydown.enter.prevent="addStore(ingredient.localId)" />
                 <button class="primary-btn small-btn" type="button" :disabled="!newStoreName.trim()" @click="addStore(ingredient.localId)">{{ t('saveStore') }}</button>
               </div>
-              <details class="ingredient-nutrition-editor">
+              <details class="ingredient-nutrition-editor" :class="ingredientHasNutrition(ingredient) ? 'has-nutrition' : 'missing-nutrition'">
                 <summary><span>{{ t('nutrition') }}</span><small>{{ t('nutritionPer') }} {{ ingredient.nutritionBasis === 'unit' ? t('perUnit') : t('per100g') }}</small></summary>
                 <div class="nutrition-editor-content">
                   <div class="nutrition-basis-row">
