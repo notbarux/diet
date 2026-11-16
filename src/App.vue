@@ -1157,7 +1157,7 @@ function ingredientKeyFor(name: string): string {
                   </div>
                   <div class="barcode-lookup-row">
                     <input v-model="ingredient.barcode" type="text" inputmode="numeric" autocomplete="off" maxlength="14" :placeholder="t('barcodePlaceholder')" :aria-label="t('barcode')" @input="clearBarcodeLookupMessage(ingredient.localId)" />
-                    <button type="button" class="secondary-btn barcode-lookup-btn" :disabled="barcodeLoadingId === ingredient.localId || !(ingredient.barcode || '').trim()" @click="lookupIngredientBarcode(ingredient)">
+                    <button type="button" class="secondary-btn barcode-lookup-btn" :disabled="barcodeLoadingId !== null || !(ingredient.barcode || '').trim()" @click="lookupIngredientBarcode(ingredient)">
                       <span v-if="barcodeLoadingId === ingredient.localId" class="inline-loader" />
                       {{ barcodeLoadingId === ingredient.localId ? t('lookingUpBarcode') : t('lookupBarcode') }}
                     </button>
