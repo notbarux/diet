@@ -41,50 +41,6 @@ export function normalizeNutrition(raw: unknown): NutritionValues | undefined {
   return hasValues ? values : undefined
 }
 
-export function readOpenFoodFactsNutrition(productRaw: unknown): { productName: string; values: NutritionValues } {
-  const product = asRecord(productRaw)
-  if (!product) throw new Error('Invalid product response')
-  const nutrition = asRecord(product.nutrition)
-  const aggregated = asRecord(nutrition?.aggregated_set)
-  const inputSets = Array.isArray(nutrition?.input_sets) ? nutrition.input_sets : []
-  const sets = [aggregated, ...inputSets.map(asRecord)].filter(
-    (item): item is Record<string, unknown> => !!item,
-  )
-  const per100g = sets.find(item => {
-    const per = typeof item.per === 'string' ? item.per.toLowerCase().replace(/\s/g, '') : '100g'
-    return per === '100g'
-  })
-  const nestedNutrients = asRecord(per100g?.nutrients) || {}
-  const flatNutrients = asRecord(product.nutriments) || {}
-  const read = (...keys: string[]): number | null => {
-    for (const key of keys) {
-      const nested = numericValue(nestedNutrients[key])
-      if (nested !== null) return nested
-      const flat = numericValue(flatNutrients[`${key}_100g`] ?? flatNutrients[key])
-      if (flat !== null) return flat
-    }
-    return null
-  }
-  let calories = read('energy-kcal')
-  if (calories === null) {
-    const kilojoules = read('energy-kj', 'energy')
-    if (kilojoules !== null) calories = kilojoules / 4.184
-  }
-  const values: NutritionValues = {
-    calories,
-    carbs: read('carbohydrates', 'carbohydrates-total'),
-    protein: read('proteins', 'protein'),
-    fat: read('fat'),
-    fiber: read('fiber', 'fibers'),
-    salt: read('salt'),
-  }
-  if (nutrientKeys.every(key => values[key] === null)) throw new Error('No nutrition values found')
-  return {
-    productName: typeof product.product_name === 'string' ? product.product_name.trim() : '',
-    values,
-  }
-}
-
 export function summarizeNutrition(ingredients: readonly MealIngredient[]): NutritionSummary {
   const summary = {} as NutritionSummary
   for (const key of nutrientKeys) {

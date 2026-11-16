@@ -338,15 +338,10 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .nutrition-editor-content { display: grid; gap: 10px; padding: 0 11px 12px; }
 .nutrition-basis-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 10px; font-weight: 700; }
 .nutrition-basis-row select { min-height: 31px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; color: var(--text); background: var(--panel-raised); font: inherit; }
-.barcode-lookup-row { display: flex; align-items: center; gap: 8px; }
-.barcode-lookup-row input { min-width: 0; min-height: 36px; flex: 1; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; outline: 0; color: var(--text); background: var(--panel-raised); font-size: 11px; }
-.barcode-lookup-row input:focus { border-color: var(--accent); }
-.barcode-lookup-btn { min-height: 36px; flex: 0 0 auto; padding: 7px 10px; font-size: 10px; }
-.inline-loader { width: 12px; height: 12px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
-.barcode-lookup-message, .nutrition-data-source, .nutrition-unit-warning, .nutrition-editor-hint { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
-.barcode-lookup-message.is-success { color: var(--success); }
-.barcode-lookup-message.is-partial, .nutrition-unit-warning { color: #d6b46f; }
-.barcode-lookup-message.is-error { color: var(--danger); }
+.nutrition-unit-warning, .nutrition-editor-hint { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
+.nutrition-unit-warning { color: #d6b46f; }
+.nutrition-unit-warning, .nutrition-editor-hint { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
+.nutrition-unit-warning { color: #d6b46f; }
 .nutrition-input-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .nutrition-input-grid label { min-width: 0; display: grid; gap: 5px; color: var(--muted); font-size: 9px; font-weight: 700; }
 .nutrition-input-grid label span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -476,8 +471,6 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .insight-nutrient-values small { font-size: 7px; }
   .insight-nutrient-values strong { font-size: 9px; }
   .insights-dish-grid { grid-template-columns: minmax(0, 1fr); }
-  .barcode-lookup-row { align-items: stretch; flex-direction: column; }
-  .barcode-lookup-btn { width: 100%; }
 }
 @media (max-width: 370px) {
   .app-topbar { padding-right: 7px; padding-left: 7px; }

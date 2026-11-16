@@ -13,11 +13,10 @@ import type {
   MealType,
   NutrientKey,
   NutritionBasis,
-  NutritionSource,
   ShoppingStatus,
   Store,
 } from './types'
-import { emptyNutrition, normalizeNutrition, nutrientKeys, readOpenFoodFactsNutrition, summarizeNutrition } from './lib/nutrition'
+import { emptyNutrition, normalizeNutrition, summarizeNutrition } from './lib/nutrition'
 import {
   ChefHat, Utensils, Plus, ChevronLeft, ChevronRight, Sun, Moon,
   Languages, Search, LogOut, X, Trash2, Pencil, Sparkles, ShoppingBasket,
@@ -52,8 +51,6 @@ const shoppingStatuses = ref<Record<string, ShoppingStatus>>({})
 const storePriorityOrder = ref<string[]>([])
 const storePriorityDraft = ref<string[]>([])
 const storePriorityModal = ref(false)
-const barcodeLoadingId = ref<string | null>(null)
-const barcodeLookupMessages = ref<Record<string, { kind: 'success' | 'partial' | 'error'; text: string }>>({})
 
 const orderedStores = computed(() => {
   const byId = new Map(stores.value.map(store => [store.id, store]))
@@ -239,9 +236,6 @@ function normalizedIngredients(raw: unknown): MealIngredient[] {
         storeIds?: unknown
         nutrition?: unknown
         nutritionBasis?: unknown
-        barcode?: unknown
-        nutritionSource?: unknown
-        nutritionProductName?: unknown
       }
       const legacyStoreIds = typeof ingredient.storeId === 'string' && ingredient.storeId ? [ingredient.storeId] : []
       const storeIds = Array.isArray(ingredient.storeIds)
@@ -251,9 +245,6 @@ function normalizedIngredients(raw: unknown): MealIngredient[] {
       const nutrition = normalizeNutrition(ingredient.nutrition)
       const nutritionBasis: NutritionBasis = ingredient.nutritionBasis === 'unit' ||
         (!ingredient.nutritionBasis && quantityUnit === 'unit') ? 'unit' : '100g'
-      const nutritionSource: NutritionSource | undefined = ingredient.nutritionSource === 'open-food-facts'
-        ? 'open-food-facts'
-        : ingredient.nutritionSource === 'manual' ? 'manual' : undefined
       return {
         name: typeof ingredient.name === 'string' ? ingredient.name : '',
         quantity: normalizeQuantity(ingredient.quantity, quantityUnit),
@@ -261,11 +252,6 @@ function normalizedIngredients(raw: unknown): MealIngredient[] {
         storeIds: [...new Set(storeIds)],
         nutritionBasis,
         ...(nutrition ? { nutrition } : {}),
-        ...(typeof ingredient.barcode === 'string' && ingredient.barcode.trim() ? { barcode: ingredient.barcode.trim() } : {}),
-        ...(nutritionSource ? { nutritionSource } : {}),
-        ...(typeof ingredient.nutritionProductName === 'string' && ingredient.nutritionProductName.trim()
-          ? { nutritionProductName: ingredient.nutritionProductName.trim() }
-          : {}),
       }
     }
     return { name: '', quantity: '', quantityUnit: 'g' as const, storeIds: [], nutritionBasis: '100g' as const }
@@ -509,11 +495,6 @@ function setIngredientNutrition(ingredient: MealIngredient & { localId: string }
   const value = raw.trim() === '' ? null : Number(raw)
   if (value !== null && (!Number.isFinite(value) || value < 0)) return
   ingredient.nutrition = { ...emptyNutrition(), ...(ingredient.nutrition || {}), [key]: value }
-  ingredient.nutritionSource = 'manual'
-  ingredient.nutritionProductName = undefined
-}
-function clearBarcodeLookupMessage(localId: string) {
-  delete barcodeLookupMessages.value[localId]
 }
 function formatNutritionValue(value: number | null, unit: string): string {
   if (value === null || !Number.isFinite(value)) return '—'
@@ -526,8 +507,6 @@ function changeIngredientNutritionBasis(ingredient: MealIngredient, event: Event
   if (ingredient.nutritionBasis === basis) return
   ingredient.nutritionBasis = basis
   ingredient.nutrition = undefined
-  ingredient.nutritionSource = undefined
-  ingredient.nutritionProductName = undefined
 }
 function nutritionCoverageText(metric: { value: number | null; knownIngredients: number; totalIngredients: number }): string {
   if (!metric.totalIngredients || !metric.knownIngredients) return t('nutritionMissing')
@@ -536,50 +515,6 @@ function nutritionCoverageText(metric: { value: number | null; knownIngredients:
   }
   return t('nutritionComplete')
 }
-async function lookupIngredientBarcode(ingredient: MealIngredient & { localId: string }) {
-  const barcode = (ingredient.barcode || '').replace(/\s/g, '')
-  if (!/^\d{8,14}$/.test(barcode)) {
-    barcodeLookupMessages.value[ingredient.localId] = { kind: 'error', text: t('barcodeInvalid') }
-    return
-  }
-
-  barcodeLoadingId.value = ingredient.localId
-  clearBarcodeLookupMessage(ingredient.localId)
-  try {
-    const response = await fetch(
-      `https://world.openfoodfacts.org/api/v3/product/${encodeURIComponent(barcode)}?fields=code,product_name,nutrition`,
-      { headers: { Accept: 'application/json' } },
-    )
-    const payload = await response.json() as { product?: unknown }
-    if (!response.ok || !payload.product) {
-      barcodeLookupMessages.value[ingredient.localId] = { kind: 'error', text: t('barcodeNotFound') }
-      return
-    }
-
-    const result = readOpenFoodFactsNutrition(payload.product)
-    ingredient.barcode = barcode
-    ingredient.nutrition = result.values
-    ingredient.nutritionBasis = '100g'
-    ingredient.nutritionSource = 'open-food-facts'
-    ingredient.nutritionProductName = result.productName || barcode
-    const missingCount = nutrientKeys.filter(key => result.values[key] === null).length
-    barcodeLookupMessages.value[ingredient.localId] = {
-      kind: missingCount ? 'partial' : 'success',
-      text: missingCount
-        ? t('barcodeLookupPartial', { product: result.productName || barcode })
-        : t('barcodeLookupSuccess', { product: result.productName || barcode }),
-    }
-  } catch (error) {
-    console.warn('Unable to retrieve Open Food Facts product:', error)
-    barcodeLookupMessages.value[ingredient.localId] = {
-      kind: 'error',
-      text: t('barcodeLookupError'),
-    }
-  } finally {
-    barcodeLoadingId.value = null
-  }
-}
-
 
 function openMeal(meal?: Meal) {
   editing.value = meal || null
@@ -618,9 +553,6 @@ async function saveMeal() {
         storeIds: [...new Set(ingredient.storeIds)],
         nutritionBasis: ingredient.nutritionBasis || (ingredient.quantityUnit === 'g' ? '100g' : 'unit'),
         ...(nutrition ? { nutrition } : {}),
-        ...(ingredient.barcode?.trim() ? { barcode: ingredient.barcode.trim() } : {}),
-        ...(ingredient.nutritionSource ? { nutritionSource: ingredient.nutritionSource } : {}),
-        ...(ingredient.nutritionProductName ? { nutritionProductName: ingredient.nutritionProductName } : {}),
       }
     })
   const payload = {
@@ -1168,15 +1100,6 @@ function ingredientKeyFor(name: string): string {
                       <option value="100g">{{ t('per100g') }}</option><option value="unit">{{ t('perUnit') }}</option>
                     </select>
                   </div>
-                  <div class="barcode-lookup-row">
-                    <input v-model="ingredient.barcode" type="text" inputmode="numeric" autocomplete="off" maxlength="14" :placeholder="t('barcodePlaceholder')" :aria-label="t('barcode')" @input="clearBarcodeLookupMessage(ingredient.localId)" />
-                    <button type="button" class="secondary-btn barcode-lookup-btn" :disabled="barcodeLoadingId !== null || !(ingredient.barcode || '').trim()" @click="lookupIngredientBarcode(ingredient)">
-                      <span v-if="barcodeLoadingId === ingredient.localId" class="inline-loader" />
-                      {{ barcodeLoadingId === ingredient.localId ? t('lookingUpBarcode') : t('lookupBarcode') }}
-                    </button>
-                  </div>
-                  <p v-if="barcodeLookupMessages[ingredient.localId]" class="barcode-lookup-message" :class="'is-' + barcodeLookupMessages[ingredient.localId].kind">{{ barcodeLookupMessages[ingredient.localId].text }}</p>
-                  <p v-if="ingredient.nutritionProductName" class="nutrition-data-source">{{ t('barcodeProductSource', { product: ingredient.nutritionProductName }) }}</p>
                   <p v-if="(ingredient.nutritionBasis === '100g' && ingredient.quantityUnit === 'unit') || (ingredient.nutritionBasis === 'unit' && ingredient.quantityUnit === 'g')" class="nutrition-unit-warning">{{ t('nutritionUnitMismatch') }}</p>
                   <div class="nutrition-input-grid">
                     <label v-for="metric in nutrientMetrics" :key="metric.key">
