@@ -13,6 +13,7 @@ import type {
   MealType,
   NutrientKey,
   NutritionBasis,
+  NutritionSource,
   ShoppingStatus,
   Store,
 } from './types'
@@ -250,9 +251,9 @@ function normalizedIngredients(raw: unknown): MealIngredient[] {
       const nutrition = normalizeNutrition(ingredient.nutrition)
       const nutritionBasis: NutritionBasis = ingredient.nutritionBasis === 'unit' ||
         (!ingredient.nutritionBasis && quantityUnit === 'unit') ? 'unit' : '100g'
-      const nutritionSource = ingredient.nutritionSource === 'open-food-facts' || ingredient.nutritionSource === 'manual'
-        ? ingredient.nutritionSource
-        : undefined
+      const nutritionSource: NutritionSource | undefined = ingredient.nutritionSource === 'open-food-facts'
+        ? 'open-food-facts'
+        : ingredient.nutritionSource === 'manual' ? 'manual' : undefined
       return {
         name: typeof ingredient.name === 'string' ? ingredient.name : '',
         quantity: normalizeQuantity(ingredient.quantity, quantityUnit),
