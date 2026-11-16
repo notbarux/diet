@@ -5,11 +5,21 @@ import packageJson from '../package.json'
 import { onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut, type User } from 'firebase/auth'
 import { collection, deleteDoc, deleteField, doc, getDoc, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
 import { auth, db, googleProvider, firebaseConfigured } from './lib/firebase'
-import type { DayPlan, IngredientQuantityUnit, Meal, MealIngredient, MealType, ShoppingStatus, Store } from './types'
+import type {
+  DayPlan,
+  IngredientQuantityUnit,
+  Meal,
+  MealIngredient,
+  MealType,
+  NutrientKey,
+  ShoppingStatus,
+  Store,
+} from './types'
+import { emptyNutrition, normalizeNutrition, nutrientKeys, readOpenFoodFactsNutrition, summarizeNutrition } from './lib/nutrition'
 import {
   ChefHat, Utensils, Plus, ChevronLeft, ChevronRight, Sun, Moon,
   Languages, Search, LogOut, X, Trash2, Pencil, Sparkles, ShoppingBasket,
-  Check, Store as StoreIcon, House, ShoppingCart, SlidersHorizontal,
+  Check, Store as StoreIcon, House, ShoppingCart, SlidersHorizontal, ChartPie,
   ChevronUp, ChevronDown,
 } from '@lucide/vue'
 
@@ -22,7 +32,7 @@ const authError = ref('')
 const meals = ref<Meal[]>([])
 const stores = ref<Store[]>([])
 const plans = ref<Record<string, DayPlan>>({})
-const activeTab = ref<'home' | 'meals' | 'shopping'>('home')
+const activeTab = ref<'home' | 'meals' | 'shopping' | 'insights'>('home')
 const theme = ref<'dark' | 'light'>((localStorage.getItem('diet-theme') as 'dark' | 'light') || 'dark')
 const search = ref('')
 const modal = ref(false)
@@ -40,6 +50,8 @@ const shoppingStatuses = ref<Record<string, ShoppingStatus>>({})
 const storePriorityOrder = ref<string[]>([])
 const storePriorityDraft = ref<string[]>([])
 const storePriorityModal = ref(false)
+const barcodeLoadingId = ref<string | null>(null)
+const barcodeLookupMessages = ref<Record<string, { kind: 'success' | 'partial' | 'error'; text: string }>>({})
 
 const orderedStores = computed(() => {
   const byId = new Map(stores.value.map(store => [store.id, store]))
@@ -109,6 +121,47 @@ const weekDays = computed(() => {
     return day
   })
 })
+const nutrientMetrics = computed(() => [
+  { key: 'calories' as const, label: t('calories'), shortLabel: 'kcal', unit: 'kcal' },
+  { key: 'carbs' as const, label: t('carbohydrates'), shortLabel: t('carbsShort'), unit: 'g' },
+  { key: 'protein' as const, label: t('protein'), shortLabel: t('proteinShort'), unit: 'g' },
+  { key: 'fat' as const, label: t('fat'), shortLabel: t('fat'), unit: 'g' },
+  { key: 'fiber' as const, label: t('fiber'), shortLabel: t('fiber'), unit: 'g' },
+  { key: 'salt' as const, label: t('salt'), shortLabel: t('salt'), unit: 'g' },
+])
+const insightDays = computed(() => weekDays.value.map(date => {
+  const key = dateKey(date)
+  const plannedMeals = mealTypes.flatMap(type => {
+    const planned = plans.value[key]?.meals?.[type]
+    if (!planned) return []
+    const meal = meals.value.find(item => item.id === planned.mealId)
+    const ingredients = meal?.ingredients || []
+    return [{
+      type,
+      name: meal?.name || planned.mealName,
+      ingredients,
+      nutrition: summarizeNutrition(ingredients),
+    }]
+  })
+  return {
+    date,
+    key,
+    meals: plannedMeals,
+    nutrition: summarizeNutrition(plannedMeals.flatMap(meal => meal.ingredients)),
+  }
+}))
+const insightWeekNutrition = computed(() =>
+  summarizeNutrition(insightDays.value.flatMap(day => day.meals.flatMap(meal => meal.ingredients))),
+)
+const dishNutrition = computed(() => meals.value.map(meal => ({
+  id: meal.id,
+  name: meal.name,
+  nutrition: summarizeNutrition(meal.ingredients),
+  hasNutrition: meal.ingredients.some(ingredient => !!normalizeNutrition(ingredient.nutrition)),
+})))
+const insightWeekRange = computed(() =>
+  `${monthDay(weekDays.value[0])} – ${monthDay(weekDays.value[6])}`,
+)
 const weekStartKey = dateKey(startOfWeek(planningReferenceDate))
 const currentWeekEndDate = new Date(startOfWeek(planningReferenceDate))
 currentWeekEndDate.setDate(currentWeekEndDate.getDate() + 6)
@@ -174,22 +227,45 @@ function normalizeQuantity(value: unknown, unit: IngredientQuantityUnit): string
 function normalizedIngredients(raw: unknown): MealIngredient[] {
   if (!Array.isArray(raw)) return []
   return raw.map((item) => {
-    if (typeof item === 'string') return { name: item, quantity: '', quantityUnit: 'g' as const, storeIds: [] }
+    if (typeof item === 'string') return { name: item, quantity: '', quantityUnit: 'g' as const, storeIds: [], nutritionBasis: '100g' as const }
     if (item && typeof item === 'object') {
-      const ingredient = item as { name?: unknown; quantity?: unknown; quantityUnit?: unknown; storeId?: unknown; storeIds?: unknown }
+      const ingredient = item as {
+        name?: unknown
+        quantity?: unknown
+        quantityUnit?: unknown
+        storeId?: unknown
+        storeIds?: unknown
+        nutrition?: unknown
+        nutritionBasis?: unknown
+        barcode?: unknown
+        nutritionSource?: unknown
+        nutritionProductName?: unknown
+      }
       const legacyStoreIds = typeof ingredient.storeId === 'string' && ingredient.storeId ? [ingredient.storeId] : []
       const storeIds = Array.isArray(ingredient.storeIds)
         ? ingredient.storeIds.filter((storeId): storeId is string => typeof storeId === 'string' && !!storeId)
         : legacyStoreIds
       const quantityUnit: IngredientQuantityUnit = ingredient.quantityUnit === 'unit' ? 'unit' : 'g'
+      const nutrition = normalizeNutrition(ingredient.nutrition)
+      const nutritionBasis = ingredient.nutritionBasis === 'unit' ? 'unit' : '100g'
+      const nutritionSource = ingredient.nutritionSource === 'open-food-facts' || ingredient.nutritionSource === 'manual'
+        ? ingredient.nutritionSource
+        : undefined
       return {
         name: typeof ingredient.name === 'string' ? ingredient.name : '',
         quantity: normalizeQuantity(ingredient.quantity, quantityUnit),
         quantityUnit,
         storeIds: [...new Set(storeIds)],
+        nutritionBasis,
+        ...(nutrition ? { nutrition } : {}),
+        ...(typeof ingredient.barcode === 'string' && ingredient.barcode.trim() ? { barcode: ingredient.barcode.trim() } : {}),
+        ...(nutritionSource ? { nutritionSource } : {}),
+        ...(typeof ingredient.nutritionProductName === 'string' && ingredient.nutritionProductName.trim()
+          ? { nutritionProductName: ingredient.nutritionProductName.trim() }
+          : {}),
       }
     }
-    return { name: '', quantity: '', quantityUnit: 'g' as const, storeIds: [] }
+    return { name: '', quantity: '', quantityUnit: 'g' as const, storeIds: [], nutritionBasis: '100g' as const }
   }).filter(item => item.name.trim())
 }
 
@@ -409,10 +485,83 @@ function quantityLabel(quantity: string, unit: IngredientQuantityUnit): string {
   const suffix = unit === 'unit' && locale.value === 'en' && Number(quantity) === 1 ? 'pc' : quantityUnitShort(unit)
   return `${quantity} ${suffix}`
 }
-function pickQuantityUnit(ingredient: { quantityUnit: IngredientQuantityUnit }, unit: IngredientQuantityUnit) {
+function pickQuantityUnit(
+  ingredient: Pick<MealIngredient, 'quantityUnit' | 'nutrition' | 'nutritionBasis'>,
+  unit: IngredientQuantityUnit,
+) {
   ingredient.quantityUnit = unit
+  const hasNutritionValues = !!ingredient.nutrition &&
+    Object.values(ingredient.nutrition).some(value => typeof value === 'number')
+  if (!hasNutritionValues) ingredient.nutritionBasis = unit === 'g' ? '100g' : 'unit'
   closePicker()
 }
+function setIngredientNutrition(ingredient: MealIngredient & { localId: string }, key: NutrientKey, event: Event) {
+  const raw = (event.target as HTMLInputElement).value
+  const value = raw.trim() === '' ? null : Number(raw)
+  if (value !== null && (!Number.isFinite(value) || value < 0)) return
+  ingredient.nutrition = { ...emptyNutrition(), ...(ingredient.nutrition || {}), [key]: value }
+  ingredient.nutritionSource = 'manual'
+  ingredient.nutritionProductName = undefined
+}
+function clearBarcodeLookupMessage(localId: string) {
+  delete barcodeLookupMessages.value[localId]
+}
+function formatNutritionValue(value: number | null, unit: string): string {
+  if (value === null || !Number.isFinite(value)) return '—'
+  const rounded = unit === 'kcal' ? Math.round(value) : Number(value.toFixed(1))
+  return `${new Intl.NumberFormat(locale.value === 'it' ? 'it-IT' : 'en-US').format(rounded)} ${unit}`
+}
+function nutritionCoverageText(metric: { value: number | null; knownIngredients: number; totalIngredients: number }): string {
+  if (!metric.totalIngredients || !metric.knownIngredients) return t('nutritionMissing')
+  if (metric.knownIngredients < metric.totalIngredients) {
+    return t('nutritionPartialCoverage', { known: metric.knownIngredients, total: metric.totalIngredients })
+  }
+  return t('nutritionComplete')
+}
+async function lookupIngredientBarcode(ingredient: MealIngredient & { localId: string }) {
+  const barcode = (ingredient.barcode || '').replace(/\s/g, '')
+  if (!/^\d{8,14}$/.test(barcode)) {
+    barcodeLookupMessages.value[ingredient.localId] = { kind: 'error', text: t('barcodeInvalid') }
+    return
+  }
+
+  barcodeLoadingId.value = ingredient.localId
+  clearBarcodeLookupMessage(ingredient.localId)
+  try {
+    const response = await fetch(
+      `https://world.openfoodfacts.org/api/v3/product/${encodeURIComponent(barcode)}?fields=code,product_name,nutrition`,
+      { headers: { Accept: 'application/json' } },
+    )
+    const payload = await response.json() as { product?: unknown }
+    if (!response.ok || !payload.product) {
+      barcodeLookupMessages.value[ingredient.localId] = { kind: 'error', text: t('barcodeNotFound') }
+      return
+    }
+
+    const result = readOpenFoodFactsNutrition(payload.product)
+    ingredient.barcode = barcode
+    ingredient.nutrition = result.values
+    ingredient.nutritionBasis = '100g'
+    ingredient.nutritionSource = 'open-food-facts'
+    ingredient.nutritionProductName = result.productName || barcode
+    const missingCount = nutrientKeys.filter(key => result.values[key] === null).length
+    barcodeLookupMessages.value[ingredient.localId] = {
+      kind: missingCount ? 'partial' : 'success',
+      text: missingCount
+        ? t('barcodeLookupPartial', { product: result.productName || barcode })
+        : t('barcodeLookupSuccess', { product: result.productName || barcode }),
+    }
+  } catch (error) {
+    console.warn('Unable to retrieve Open Food Facts product:', error)
+    barcodeLookupMessages.value[ingredient.localId] = {
+      kind: 'error',
+      text: t('barcodeLookupError'),
+    }
+  } finally {
+    barcodeLoadingId.value = null
+  }
+}
+
 
 function openMeal(meal?: Meal) {
   editing.value = meal || null
@@ -425,7 +574,14 @@ function openMeal(meal?: Meal) {
   modal.value = true
 }
 function addIngredient() {
-  form.value.ingredients.push({ localId: crypto.randomUUID(), name: '', quantity: '', quantityUnit: 'g', storeIds: [] })
+  form.value.ingredients.push({
+    localId: crypto.randomUUID(),
+    name: '',
+    quantity: '',
+    quantityUnit: 'g',
+    storeIds: [],
+    nutritionBasis: '100g',
+  })
 }
 function removeIngredient(localId: string) {
   form.value.ingredients = form.value.ingredients.filter(ingredient => ingredient.localId !== localId)
@@ -435,12 +591,20 @@ async function saveMeal() {
   if (!db || !form.value.name.trim()) return
   const ingredients = form.value.ingredients
     .filter(ingredient => ingredient.name.trim())
-    .map(({ name, quantity, quantityUnit, storeIds }) => ({
-      name: name.trim(),
-      quantity: normalizeQuantity(quantity, quantityUnit),
-      quantityUnit,
-      storeIds: [...new Set(storeIds)],
-    }))
+    .map((ingredient) => {
+      const nutrition = normalizeNutrition(ingredient.nutrition)
+      return {
+        name: ingredient.name.trim(),
+        quantity: normalizeQuantity(ingredient.quantity, ingredient.quantityUnit),
+        quantityUnit: ingredient.quantityUnit,
+        storeIds: [...new Set(ingredient.storeIds)],
+        nutritionBasis: ingredient.nutritionBasis || (ingredient.quantityUnit === 'g' ? '100g' : 'unit'),
+        ...(nutrition ? { nutrition } : {}),
+        ...(ingredient.barcode?.trim() ? { barcode: ingredient.barcode.trim() } : {}),
+        ...(ingredient.nutritionSource ? { nutritionSource: ingredient.nutritionSource } : {}),
+        ...(ingredient.nutritionProductName ? { nutritionProductName: ingredient.nutritionProductName } : {}),
+      }
+    })
   const payload = {
     name: form.value.name.trim(),
     ingredients,
@@ -691,8 +855,8 @@ function ingredientKeyFor(name: string): string {
         </div>
       </div>
       <nav class="top-nav" aria-label="Main navigation">
-        <button v-for="tab in ['home', 'meals', 'shopping'] as const" :key="tab" :class="['top-nav-item', { active: activeTab === tab }]" @click="activeTab = tab">
-          <House v-if="tab === 'home'" /><ChefHat v-else-if="tab === 'meals'" /><ShoppingBasket v-else />
+        <button v-for="tab in ['home', 'meals', 'shopping', 'insights'] as const" :key="tab" :class="['top-nav-item', { active: activeTab === tab }]" @click="activeTab = tab">
+          <House v-if="tab === 'home'" /><ChefHat v-else-if="tab === 'meals'" /><ShoppingBasket v-else-if="tab === 'shopping'" /><ChartPie v-else />
           <span>{{ t(tab) }}</span>
         </button>
       </nav>
@@ -779,6 +943,60 @@ function ingredientKeyFor(name: string): string {
         <div v-else class="empty-collection"><div class="state-icon"><ChefHat /></div><h3>{{ t('noMeals') }}</h3><button class="text-btn" @click="openMeal()">{{ t('addMeal') }} +</button></div>
       </section>
 
+      <section v-else-if="activeTab === 'insights'" class="page insights-page">
+        <div class="page-heading compact section-heading insights-heading">
+          <div>
+            <h1>{{ t('insights') }}</h1>
+            <p class="insights-intro">{{ t('insightsIntro') }}</p>
+          </div>
+          <span class="insights-week-label">{{ insightWeekRange }}</span>
+        </div>
+        <section class="insights-section">
+          <div class="insights-section-heading"><h2>{{ t('weekNutrition') }}</h2><span>{{ t('selectedWeek') }}</span></div>
+          <div class="insights-summary-grid">
+            <article v-for="metric in nutrientMetrics" :key="metric.key" class="insight-metric-card">
+              <span>{{ metric.label }}</span>
+              <strong>{{ formatNutritionValue(insightWeekNutrition[metric.key].value, metric.unit) }}</strong>
+              <small>{{ nutritionCoverageText(insightWeekNutrition[metric.key]) }}</small>
+            </article>
+          </div>
+        </section>
+        <section class="insights-section">
+          <div class="insights-section-heading"><h2>{{ t('dailyMeals') }}</h2><span>{{ t('dailyMealsHint') }}</span></div>
+          <div class="insights-days">
+            <article v-for="day in insightDays" :key="day.key" class="insight-day-card">
+              <header class="insight-day-heading">
+                <div><span>{{ new Intl.DateTimeFormat(locale === 'it' ? 'it-IT' : 'en-US', { weekday: 'long' }).format(day.date) }}</span><h3>{{ monthDay(day.date) }}</h3></div>
+                <strong>{{ formatNutritionValue(day.nutrition.calories.value, 'kcal') }}</strong>
+              </header>
+              <div v-if="day.meals.length" class="insight-day-meals">
+                <article v-for="meal in day.meals" :key="meal.type" class="insight-meal-row">
+                  <div class="insight-meal-title"><span>{{ t(meal.type) }}</span><strong>{{ meal.name }}</strong></div>
+                  <div class="insight-nutrient-values">
+                    <span v-for="metric in nutrientMetrics" :key="metric.key><small>{{ metric.shortLabel }}</small><strong>{{ formatNutritionValue(meal.nutrition[metric.key].value, metric.unit) }}</strong></span>
+                  </div>
+                  <p class="insight-coverage">{{ nutritionCoverageText(meal.nutrition.calories) }}</p>
+                </article>
+              </div>
+              <p v-else class="insight-empty-day">{{ t('noMealsPlanned') }}</p>
+            </article>
+          </div>
+        </section>
+        <section class="insights-section">
+          <div class="insights-section-heading"><h2>{{ t('dishNutrition') }}</h2><span>{{ t('dishNutritionHint') }}</span></div>
+          <div v-if="dishNutrition.length" class="insights-dish-grid">
+            <article v-for="dish in dishNutrition" :key="dish.id" class="insight-dish-card">
+              <h3>{{ dish.name }}</h3>
+              <div v-if="dish.hasNutrition" class="insight-nutrient-values dish-nutrient-values">
+                <span v-for="metric in nutrientMetrics" :key="metric.key"><small>{{ metric.shortLabel }}</small><strong>{{ formatNutritionValue(dish.nutrition[metric.key].value, metric.unit) }}</strong></span>
+              </div>
+              <p class="insight-coverage">{{ dish.hasNutrition ? nutritionCoverageText(dish.nutrition.calories) : t('nutritionMissing') }}</p>
+            </article>
+          </div>
+          <div v-else class="empty-collection"><ChefHat :size="28" /><h3>{{ t('noMeals') }}</h3></div>
+        </section>
+        <p class="insights-footnote">{{ t('nutritionCalculationNote') }}</p>
+      </section>
       <section v-else class="page shopping-page">
         <div class="page-heading compact section-heading shopping-page-heading">
           <h1>{{ t('shopping') }}</h1>
@@ -912,7 +1130,34 @@ function ingredientKeyFor(name: string): string {
                 <input v-model="newStoreName" :placeholder="t('newStore')" maxlength="60" @keydown.enter.prevent="addStore(ingredient.localId)" />
                 <button class="primary-btn small-btn" type="button" :disabled="!newStoreName.trim()" @click="addStore(ingredient.localId)">{{ t('saveStore') }}</button>
               </div>
-            </div>
+              <details class="ingredient-nutrition-editor">
+                <summary><span>{{ t('nutrition') }}</span><small>{{ t('nutritionPer') }} {{ ingredient.nutritionBasis === 'unit' ? t('perUnit') : t('per100g') }}</small></summary>
+                <div class="nutrition-editor-content">
+                  <div class="nutrition-basis-row">
+                    <label :for="'nutrition-basis-' + ingredient.localId">{{ t('nutritionBasis') }}</label>
+                    <select :id="'nutrition-basis-' + ingredient.localId" v-model="ingredient.nutritionBasis">
+                      <option value="100g">{{ t('per100g') }}</option><option value="unit">{{ t('perUnit') }}</option>
+                    </select>
+                  </div>
+                  <div class="barcode-lookup-row">
+                    <input v-model="ingredient.barcode" type="text" inputmode="numeric" autocomplete="off" maxlength="14" :placeholder="t('barcodePlaceholder')" :aria-label="t('barcode')" @input="clearBarcodeLookupMessage(ingredient.localId)" />
+                    <button type="button" class="secondary-btn barcode-lookup-btn" :disabled="barcodeLoadingId === ingredient.localId || !(ingredient.barcode || '').trim()" @click="lookupIngredientBarcode(ingredient)">
+                      <span v-if="barcodeLoadingId === ingredient.localId" class="inline-loader" />
+                      {{ barcodeLoadingId === ingredient.localId ? t('lookingUpBarcode') : t('lookupBarcode') }}
+                    </button>
+                  </div>
+                  <p v-if="barcodeLookupMessages[ingredient.localId]" class="barcode-lookup-message" :class="'is-' + barcodeLookupMessages[ingredient.localId].kind">{{ barcodeLookupMessages[ingredient.localId].text }}</p>
+                  <p v-if="ingredient.nutritionProductName" class="nutrition-data-source">{{ t('barcodeProductSource', { product: ingredient.nutritionProductName }) }}</p>
+                  <p v-if="(ingredient.nutritionBasis === '100g' && ingredient.quantityUnit === 'unit') || (ingredient.nutritionBasis === 'unit' && ingredient.quantityUnit === 'g')" class="nutrition-unit-warning">{{ t('nutritionUnitMismatch') }}</p>
+                  <div class="nutrition-input-grid">
+                    <label v-for="metric in nutrientMetrics" :key="metric.key>
+                      <span>{{ metric.label }} <small>({{ metric.unit }})</small></span>
+                      <input type="number" min="0" step="any" :value="ingredient.nutrition?.[metric.key] ?? ''" @input="setIngredientNutrition(ingredient, metric.key, $event)" />
+                    </label>
+                  </div>
+                  <p class="nutrition-editor-hint">{{ t('nutritionEntryHint') }}</p>
+                </div>
+              </details>            </div>
           </div>
           <div class="modal-actions"><button type="button" class="secondary-btn" @click="modal = false">{{ t('cancel') }}</button><button class="primary-btn" type="submit">{{ t('save') }}</button></div>
         </form>
