@@ -6,7 +6,8 @@ Applicazione client-side per organizzare i pasti quotidiani e settimanali. Stack
 
 - Login Google e allowlist Firestore per abilitare manualmente un solo account.
 - Sezioni **Home** (pianificazione settimanale), **Meals** e **Shopping**.
-- CRUD dei piatti basato su nome e ingredienti, con quantità in grammi o unità e associazione a più negozi.
+- CRUD dei piatti con ingredienti, quantità, negozi e valori nutrizionali (calorie, carboidrati, proteine, grassi, fibre e sale); inserimento manuale o importazione tramite codice a barre.
+- Sezione **Insights** con riepiloghi nutrizionali settimanali, giornalieri e per piatto.
 - Nella libreria piatti: utilizzo nella settimana corrente e media settimanale storica, calcolata dalla prima settimana in cui il piatto compare.
 - Pianificazione per colazione, pranzo, merenda e cena; navigazione settimanale con focus sul giorno selezionato e indicazione del giorno corrente.
 - Tema scuro predefinito e tema chiaro; preferenze salvate localmente.
@@ -48,7 +49,7 @@ Il documento è la allowlist. Per revocare l'accesso imposta `enabled` a `false`
 ## 3. Schema Firestore
 
 - `users/{uid}`: `{ enabled: boolean }` — gestito manualmente dall'amministratore.
-- `meals/{mealId}`: `{ name, ingredients: MealIngredient[], createdAt, updatedAt }`; le proprietà legacy `description` e `tags` non sono più utilizzate e vengono eliminate quando salvi un piatto esistente.
+- `meals/{mealId}`: `{ name, ingredients: MealIngredient[], createdAt, updatedAt }`. Ogni ingrediente può includere `nutrition` (calories, carbs, protein, fat, fiber, salt), `nutritionBasis` (`100g` o `unit`), `barcode`, `nutritionSource` e `nutritionProductName`; i campi nutrizionali sono opzionali per mantenere compatibili i piatti esistenti. Le proprietà legacy `description` e `tags` vengono eliminate quando salvi un piatto esistente.
 - `plan/{YYYY-MM-DD}`: `{ date: string, meals: { breakfast?: { mealId, mealName }, lunch?: ..., snack?: ..., dinner?: ... } }`.
 - `stores/{storeId}`: `{ name: string, createdAt }`.
 - `shoppingLists/current`: `{ statuses: Record<string, ShoppingStatus>, storePriorityOrder: string[] }`; l'ordine dei negozi è globale e determina a quale negozio assegnare gli ingredienti disponibili in più posti.
@@ -84,7 +85,9 @@ Ogni `npm run build` aggiorna `docs/` e, se il build riesce, committa e pusha au
 - Le regole Firestore sono il controllo effettivo: nascondere le schermate nel frontend non è una misura di sicurezza.
 - La regola `allowed()` richiede un utente autenticato e un documento allowlist con `enabled == true` per leggere/scrivere `meals` e `plan`.
 - Il client non può modificare `users`. Le regole non consentono accesso anonimo.
-- L'app non include API server, funzioni Cloud o servizi backend personalizzati.
+- L'app non include API server, funzioni Cloud o servizi backend personalizzati. L'importazione nutrizionale interroga direttamente dal browser l'API pubblica di lettura di [Open Food Facts](https://openfoodfacts.github.io/documentation/docs/Product-Opener/v3/products/get-api-v3-product-code/) tramite il codice a barre; non servono una chiave API né un backend applicativo.
+- Open Food Facts è un database collaborativo: i dati possono essere incompleti o inesatti. I valori importati sono riferiti a 100 g e vanno verificati; quelli mancanti possono essere inseriti manualmente. I totali vengono calcolati solo quando quantità, unità/base nutrizionale e valore sono disponibili.
+- Le richieste barcode sono avviate manualmente e salvate nel documento del piatto dopo il salvataggio dell'utente. L'API documenta un limite di 15 richieste di lettura prodotto al minuto per IP; evitare richieste ripetute non necessarie. Il browser non consente all'app di impostare un header `User-Agent` personalizzato.
 - Il campo `rating` rappresenta una valutazione manuale della frequenza di scelta: 1 = scelta rara (verde), 5 = scelta frequente (rosso).
 
 agentic ready
