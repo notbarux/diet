@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import packageJson from '../package.json'
 import { onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut, type User } from 'firebase/auth'
@@ -28,6 +28,8 @@ const search = ref('')
 const modal = ref(false)
 const editing = ref<Meal | null>(null)
 const openPickerKey = ref<string | null>(null)
+const dropdownAnchor = ref<HTMLElement | null>(null)
+const dropdownStyle = ref<Record<string, string>>({ visibility: 'hidden' })
 const form = ref({
   name: '',
   ingredients: [] as Array<MealIngredient & { localId: string }>,
@@ -266,13 +268,49 @@ async function checkAccess(currentUser: User) {
 
 function closePicker() {
   openPickerKey.value = null
+  dropdownAnchor.value = null
+  dropdownStyle.value = { visibility: 'hidden' }
 }
 function closePickerOnOutsideClick() {
   closePicker()
 }
+function updateDropdownPosition() {
+  const anchor = dropdownAnchor.value
+  if (!anchor || !anchor.isConnected || !openPickerKey.value) return
+
+  const rect = anchor.getBoundingClientRect()
+  const menu = document.querySelector<HTMLElement>('.dropdown-menu-portal')
+  const isQuantityMenu = openPickerKey.value.startsWith('quantity-')
+  const preferredMaxHeight = isQuantityMenu ? 140 : 245
+  const menuHeight = Math.min(menu?.scrollHeight || preferredMaxHeight, preferredMaxHeight)
+  const gap = 7
+  const viewportPadding = 8
+  const spaceBelow = Math.max(0, window.innerHeight - rect.bottom - gap - viewportPadding)
+  const spaceAbove = Math.max(0, rect.top - gap - viewportPadding)
+  const openAbove = spaceBelow < menuHeight && spaceAbove > spaceBelow
+  const availableHeight = openAbove ? spaceAbove : spaceBelow
+  const maxHeight = Math.min(preferredMaxHeight, availableHeight)
+  const visibleMenuHeight = Math.min(menuHeight, maxHeight)
+  const top = openAbove
+    ? Math.max(viewportPadding, rect.top - gap - visibleMenuHeight)
+    : Math.min(window.innerHeight - viewportPadding, rect.bottom + gap)
+  const width = Math.min(isQuantityMenu ? 172 : rect.width, window.innerWidth - viewportPadding * 2)
+  const preferredLeft = isQuantityMenu ? rect.right - width : rect.left
+  const left = Math.max(viewportPadding, Math.min(preferredLeft, window.innerWidth - width - viewportPadding))
+
+  dropdownStyle.value = {
+    top: `${top}px`,
+    left: `${left}px`,
+    width: `${width}px`,
+    maxHeight: `${maxHeight}px`,
+    visibility: 'visible',
+  }
+}
 
 onMounted(() => {
   document.addEventListener('click', closePickerOnOutsideClick)
+  document.addEventListener('scroll', updateDropdownPosition, true)
+  window.addEventListener('resize', updateDropdownPosition)
   if (!auth || !db) {
     checking.value = false
     return
@@ -297,6 +335,8 @@ onMounted(() => {
 })
 onUnmounted(() => {
   document.removeEventListener('click', closePickerOnOutsideClick)
+  document.removeEventListener('scroll', updateDropdownPosition, true)
+  window.removeEventListener('resize', updateDropdownPosition)
   unsubscribeAuth?.()
   stopMeals?.()
   stopPlans?.()
@@ -322,8 +362,17 @@ async function login() {
 async function logout() {
   if (auth) await firebaseSignOut(auth)
 }
-function togglePicker(key: string) {
-  openPickerKey.value = openPickerKey.value === key ? null : key
+async function togglePicker(key: string, event: MouseEvent) {
+  if (openPickerKey.value === key) {
+    closePicker()
+    return
+  }
+
+  openPickerKey.value = key
+  dropdownAnchor.value = event.currentTarget as HTMLElement
+  dropdownStyle.value = { visibility: 'hidden' }
+  await nextTick()
+  updateDropdownPosition()
 }
 function selectShoppingWeek(week: 'this' | 'next') {
   shoppingWeekSelection.value = week
@@ -681,12 +730,14 @@ function ingredientKeyFor(name: string): string {
                   </div>
                   <div class="meal-picker-actions today-picker-actions">
                     <div class="custom-select-wrap" @click.stop>
-                      <button class="custom-select-trigger" :aria-expanded="openPickerKey === `home-${homeDay.key}-${type}`" @click="togglePicker(`home-${homeDay.key}-${type}`)">
+                      <button class="custom-select-trigger" :aria-expanded="openPickerKey === `home-${homeDay.key}-${type}`" @click="togglePicker(`home-${homeDay.key}-${type}`, $event)">
                         <span>{{ plannedMealName(homeDay.key, type) || t('selectDish') }}</span><ChevronRight class="select-chevron" :size="16" />
                       </button>
-                      <div v-if="openPickerKey === `home-${homeDay.key}-${type}`" class="custom-select-menu">
-                        <button v-for="meal in meals" :key="meal.id" class="custom-select-option" :class="{ selected: homeDay.plan.meals[type]?.mealId === meal.id }" @click="pickPlanMeal(homeDay.date, type, meal.id)">{{ meal.name }}</button>
-                      </div>
+                      <Teleport to="body">
+                        <div v-if="openPickerKey === `home-${homeDay.key}-${type}`" class="custom-select-menu dropdown-menu-portal" :style="dropdownStyle" @click.stop>
+                          <button v-for="meal in meals" :key="meal.id" class="custom-select-option" :class="{ selected: homeDay.plan.meals[type]?.mealId === meal.id }" @click="pickPlanMeal(homeDay.date, type, meal.id)">{{ meal.name }}</button>
+                        </div>
+                      </Teleport>
                     </div>
                     <button v-if="homeDay.plan.meals[type]" type="button" class="icon-btn clear-meal-btn" :title="t('clearMeal')" :aria-label="t('clearMeal')" @click="clearPlanMeal(homeDay.date, type)"><X :size="16" /></button>
                   </div>
@@ -759,12 +810,14 @@ function ingredientKeyFor(name: string): string {
                 </div>
                 <div class="meal-picker-actions day-meal-picker-actions">
                   <div class="custom-select-wrap day-meal-select" @click.stop>
-                    <button class="custom-select-trigger" :aria-expanded="openPickerKey === `plan-${dateKey(day)}-${type}`" @click="togglePicker(`plan-${dateKey(day)}-${type}`)">
+                    <button class="custom-select-trigger" :aria-expanded="openPickerKey === `plan-${dateKey(day)}-${type}`" @click="togglePicker(`plan-${dateKey(day)}-${type}`, $event)">
                       <span>{{ plannedMealName(dateKey(day), type) || t('selectDish') }}</span><ChevronRight class="select-chevron" :size="15" />
                     </button>
-                    <div v-if="openPickerKey === `plan-${dateKey(day)}-${type}`" class="custom-select-menu">
-                      <button v-for="meal in meals" :key="meal.id" class="custom-select-option" :class="{ selected: plans[dateKey(day)]?.meals[type]?.mealId === meal.id }" @click="pickPlanMeal(day, type, meal.id)">{{ meal.name }}</button>
-                    </div>
+                    <Teleport to="body">
+                      <div v-if="openPickerKey === `plan-${dateKey(day)}-${type}`" class="custom-select-menu dropdown-menu-portal" :style="dropdownStyle" @click.stop>
+                        <button v-for="meal in meals" :key="meal.id" class="custom-select-option" :class="{ selected: plans[dateKey(day)]?.meals[type]?.mealId === meal.id }" @click="pickPlanMeal(day, type, meal.id)">{{ meal.name }}</button>
+                      </div>
+                    </Teleport>
                   </div>
                   <button v-if="plans[dateKey(day)]?.meals[type]" type="button" class="icon-btn clear-meal-btn" :title="t('clearMeal')" :aria-label="t('clearMeal')" @click="clearPlanMeal(day, type)"><X :size="15" /></button>
                 </div>
@@ -784,13 +837,15 @@ function ingredientKeyFor(name: string): string {
               <span class="shopping-filter-label">{{ t('excludeAlreadyAtHome') }}</span>
             </label>
             <div class="custom-select-wrap shopping-week-selector" @click.stop>
-              <button class="custom-select-trigger" :aria-expanded="openPickerKey === 'shopping-week'" @click="togglePicker('shopping-week')">
+              <button class="custom-select-trigger" :aria-expanded="openPickerKey === 'shopping-week'" @click="togglePicker('shopping-week', $event)">
                 <span>{{ shoppingWeekSelection === 'this' ? t('thisWeek') : t('next') }}</span><ChevronRight class="select-chevron" :size="15" />
               </button>
-              <div v-if="openPickerKey === 'shopping-week'" class="custom-select-menu">
-                <button class="custom-select-option" :class="{ selected: shoppingWeekSelection === 'this' }" @click="selectShoppingWeek('this')">{{ t('thisWeek') }}</button>
-                <button class="custom-select-option" :class="{ selected: shoppingWeekSelection === 'next' }" @click="selectShoppingWeek('next')">{{ t('next') }}</button>
-              </div>
+              <Teleport to="body">
+                <div v-if="openPickerKey === 'shopping-week'" class="custom-select-menu dropdown-menu-portal" :style="dropdownStyle" @click.stop>
+                  <button class="custom-select-option" :class="{ selected: shoppingWeekSelection === 'this' }" @click="selectShoppingWeek('this')">{{ t('thisWeek') }}</button>
+                  <button class="custom-select-option" :class="{ selected: shoppingWeekSelection === 'next' }" @click="selectShoppingWeek('next')">{{ t('next') }}</button>
+                </div>
+              </Teleport>
             </div>
             <button class="secondary-btn store-priority-trigger" @click="openStorePriorityModal"><SlidersHorizontal :size="16" />{{ t('storePriorities') }}</button>
           </div>
@@ -863,24 +918,28 @@ function ingredientKeyFor(name: string): string {
                   <span>{{ t('quantity') }}</span>
                   <span class="quantity-input-wrap" @click.stop>
                     <input :value="ingredient.quantity" :aria-label="t('quantity')" type="number" min="0" :step="ingredient.quantityUnit === 'unit' ? 1 : 'any'" :inputmode="ingredient.quantityUnit === 'unit' ? 'numeric' : 'decimal'" :placeholder="ingredient.quantityUnit === 'unit' ? '1' : '200'" @input="ingredient.quantity = ($event.target as HTMLInputElement).value" />
-                    <button type="button" class="quantity-unit quantity-unit-select" :aria-expanded="openPickerKey === `quantity-${ingredient.localId}`" @click="togglePicker(`quantity-${ingredient.localId}`)">{{ quantityUnitShort(ingredient.quantityUnit) }}<ChevronRight :size=12 /></button>
-                    <div v-if="openPickerKey === `quantity-${ingredient.localId}`" class="quantity-unit-menu">
-                      <button type="button" class="quantity-unit-option" :class="{ selected: ingredient.quantityUnit === 'g' }" @click="pickQuantityUnit(ingredient, 'g')"><span class="quantity-option-symbol">g</span><span class="quantity-option-label">{{ t('quantityUnitGrams') }}</span><Check v-if="ingredient.quantityUnit === 'g'" :size="14" /></button>
-                      <button type="button" class="quantity-unit-option" :class="{ selected: ingredient.quantityUnit === 'unit' }" @click="pickQuantityUnit(ingredient, 'unit')"><span class="quantity-option-symbol">{{ quantityUnitShort('unit') }}</span><span class="quantity-option-label">{{ t('quantityUnitPieces') }}</span><Check v-if="ingredient.quantityUnit === 'unit'" :size="14" /></button>
-                    </div>
+                    <button type="button" class="quantity-unit quantity-unit-select" :aria-expanded="openPickerKey === `quantity-${ingredient.localId}`" @click="togglePicker(`quantity-${ingredient.localId}`, $event)">{{ quantityUnitShort(ingredient.quantityUnit) }}<ChevronRight :size=12 /></button>
+                    <Teleport to="body">
+                      <div v-if="openPickerKey === `quantity-${ingredient.localId}`" class="quantity-unit-menu dropdown-menu-portal" :style="dropdownStyle" @click.stop>
+                        <button type="button" class="quantity-unit-option" :class="{ selected: ingredient.quantityUnit === 'g' }" @click="pickQuantityUnit(ingredient, 'g')"><span class="quantity-option-symbol">g</span><span class="quantity-option-label">{{ t('quantityUnitGrams') }}</span><Check v-if="ingredient.quantityUnit === 'g'" :size="14" /></button>
+                        <button type="button" class="quantity-unit-option" :class="{ selected: ingredient.quantityUnit === 'unit' }" @click="pickQuantityUnit(ingredient, 'unit')"><span class="quantity-option-symbol">{{ quantityUnitShort('unit') }}</span><span class="quantity-option-label">{{ t('quantityUnitPieces') }}</span><Check v-if="ingredient.quantityUnit === 'unit'" :size="14" /></button>
+                      </div>
+                    </Teleport>
                   </span>
                 </div>
               </div>
               <div class="store-picker-line">
                 <span class="field-caption">{{ t('store') }}</span>
                 <div class="custom-select-wrap store-select-wrap" @click.stop>
-                  <button type="button" class="custom-select-trigger" :aria-expanded="openPickerKey === `store-${ingredient.localId}`" @click="togglePicker(`store-${ingredient.localId}`)">
+                  <button type="button" class="custom-select-trigger" :aria-expanded="openPickerKey === `store-${ingredient.localId}`" @click="togglePicker(`store-${ingredient.localId}`, $event)">
                     <span>{{ storeSelectionLabel(ingredient.storeIds) }}</span><ChevronRight class="select-chevron" :size="15" />
                   </button>
-                  <div v-if="openPickerKey === `store-${ingredient.localId}`" class="custom-select-menu">
-                    <button type="button" class="custom-select-option" :class="{ selected: !ingredient.storeIds.length }" @click="pickStore(ingredient, '')">{{ t('noStore') }}<Check v-if="!ingredient.storeIds.length" :size="14" /></button>
-                    <button v-for="store in stores" :key="store.id" type="button" class="custom-select-option multi-select-option" :class="{ selected: ingredient.storeIds.includes(store.id) }" @click="pickStore(ingredient, store.id)">{{ store.name }}<Check v-if="ingredient.storeIds.includes(store.id)" :size="14" /></button>
-                  </div>
+                  <Teleport to="body">
+                    <div v-if="openPickerKey === `store-${ingredient.localId}`" class="custom-select-menu dropdown-menu-portal" :style="dropdownStyle" @click.stop>
+                      <button type="button" class="custom-select-option" :class="{ selected: !ingredient.storeIds.length }" @click="pickStore(ingredient, '')">{{ t('noStore') }}<Check v-if="!ingredient.storeIds.length" :size="14" /></button>
+                      <button v-for="store in stores" :key="store.id" type="button" class="custom-select-option multi-select-option" :class="{ selected: ingredient.storeIds.includes(store.id) }" @click="pickStore(ingredient, store.id)">{{ store.name }}<Check v-if="ingredient.storeIds.includes(store.id)" :size="14" /></button>
+                    </div>
+                  </Teleport>
                 </div>
                 <button
                   type="button"
