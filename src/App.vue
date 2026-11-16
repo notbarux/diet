@@ -478,7 +478,7 @@ function ingredientHasNutrition(ingredient: Pick<MealIngredient, 'nutrition'>): 
   return !!normalizeNutrition(ingredient.nutrition)
 }
 function mealHasNutrition(meal: Pick<Meal, 'ingredients'>): boolean {
-  return meal.ingredients.some(ingredientHasNutrition)
+  return meal.ingredients.length > 0 && meal.ingredients.every(ingredientHasNutrition)
 }
 function pickQuantityUnit(
   ingredient: Pick<MealIngredient, 'quantityUnit' | 'nutrition' | 'nutritionBasis'>,
