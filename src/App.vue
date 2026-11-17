@@ -19,7 +19,7 @@ import type {
 import { emptyNutrition, normalizeNutrition, summarizeNutrition } from './lib/nutrition'
 import {
   ChefHat, Utensils, Plus, ChevronLeft, ChevronRight, Sun, Moon,
-  Languages, Search, LogOut, X, Trash2, Pencil, Sparkles, ShoppingBasket,
+  Languages, LogOut, X, Trash2, Pencil, Sparkles, ShoppingBasket,
   Check, Store as StoreIcon, House, ShoppingCart, SlidersHorizontal, ChartPie,
   ChevronUp, ChevronDown, Eye,
 } from '@lucide/vue'
@@ -35,7 +35,6 @@ const stores = ref<Store[]>([])
 const plans = ref<Record<string, DayPlan>>({})
 const activeTab = ref<'home' | 'meals' | 'shopping' | 'insights'>('home')
 const theme = ref<'dark' | 'light'>((localStorage.getItem('diet-theme') as 'dark' | 'light') || 'dark')
-const search = ref('')
 const excludeVariableMeals = ref(true)
 const storedMobilePlanView = localStorage.getItem('diet-mobile-plan-view')
 const mobilePlanView = ref<'inline' | 'table'>(storedMobilePlanView === 'table' ? 'table' : 'inline')
@@ -116,7 +115,6 @@ const monthDay = (date: Date) => new Intl.DateTimeFormat(locale.value === 'it' ?
 }).format(date)
 const sortedMeals = computed(() => meals.value
   .filter(meal => !excludeVariableMeals.value || !meal.variable)
-  .filter(meal => meal.name.toLowerCase().includes(search.value.toLowerCase()))
   .sort((a, b) => a.name.localeCompare(b.name)))
 const weekDays = computed(() => {
   const monday = startOfWeek(selectedDate.value)
@@ -910,7 +908,6 @@ function ingredientKeyFor(name: string): string {
               <span class="meals-filter-switch" aria-hidden="true"><span></span></span>
               <span>{{ t('excludeVariableMeals') }}</span>
             </label>
-            <div class="search-box meals-search-box"><Search :size="17" /><input v-model="search" :placeholder="t('search')" /></div>
             <button class="primary-btn" @click="openMeal()"><Plus :size="17" />{{ t('addMeal') }}</button>
           </div>
         </div>

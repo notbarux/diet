@@ -139,9 +139,6 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .day-meal-actions .clear-meal-btn svg { width: 14px; height: 14px; }
 
 /* Meals library. */
-.search-box { width: min(390px, 72%); min-width: 0; min-height: 43px; display: flex; align-items: center; gap: 10px; padding: 0 13px; border: 1px solid var(--line); border-radius: 11px; color: var(--muted); background: var(--panel); }
-.search-box input { width: 100%; min-width: 0; border: 0; outline: 0; color: var(--text); background: transparent; font-size: 12px; }
-.search-box:focus-within { border-color: var(--accent); }
 .meals-filter-toggle, .meal-variable-toggle { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 10px; font-weight: 700; white-space: nowrap; cursor: pointer; }
 .meals-filter-toggle input, .meal-variable-toggle input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .meals-filter-switch, .meal-variable-switch { width: 30px; height: 17px; flex: 0 0 30px; display: inline-flex; align-items: center; padding: 2px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel-raised); transition: background .15s ease, border-color .15s ease; }
@@ -153,7 +150,6 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 
 .meals-page-heading { align-items: center; gap: 14px; }
 .meals-heading-actions { min-width: 0; display: flex; align-items: center; gap: 9px; }
-.meals-search-box { width: clamp(180px, 25vw, 300px); flex: 1 1 auto; }
 .meals-list { border-top: 1px solid var(--line); }
 .meal-row { display: flex; align-items: center; gap: 19px; padding: 19px 8px; border-bottom: 1px solid var(--line); }
 .meal-row-number { width: 26px; flex: 0 0 26px; color: var(--muted); font: 11px 'IBM Plex Mono', monospace; }
@@ -446,7 +442,6 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .custom-select-trigger { min-height: 37px; }
   .meals-page-heading { gap: 8px; }
   .meals-heading-actions { flex: 1; gap: 6px; }
-  .meals-search-box { width: auto; min-width: 0; min-height: 40px; flex: 1 1 auto; gap: 6px; padding: 0 9px; }
   .meal-row { align-items: flex-start; flex-wrap: wrap; gap: 9px; padding: 15px 0; }
   .meal-row-number { width: 18px; flex-basis: 18px; padding-top: 3px; }
   .meal-row-main { flex-basis: calc(100% - 30px); }
