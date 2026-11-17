@@ -685,7 +685,8 @@ const shoppingItems = computed(() => {
     for (const planned of Object.values(day?.meals || {})) {
       if (!planned) continue
       const meal = meals.value.find(item => item.id === planned.mealId)
-      for (const ingredient of meal?.ingredients || []) {
+      if (!meal || meal.variable) continue
+      for (const ingredient of meal.ingredients) {
         const name = ingredient.name.trim()
         if (!name) continue
         const quantityUnit = ingredient.quantityUnit || 'g'
