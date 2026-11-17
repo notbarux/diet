@@ -81,7 +81,7 @@ if (today.getDay() === 6) planDefaultDate.setDate(planDefaultDate.getDate() + 2)
 else if (today.getDay() === 0) planDefaultDate.setDate(planDefaultDate.getDate() + 1)
 const selectedDate = ref(new Date(planDefaultDate < planStartDate ? planStartDate : planDefaultDate))
 const shoppingWeekSelection = ref<'this' | 'next'>(today.getDay() === 0 || today.getDay() === 6 ? 'next' : 'this')
-const excludeAlreadyAtHome = ref(false)
+const excludeAlreadyAtHome = ref(true)
 const currentKey = computed(() => dateKey(selectedDate.value))
 const dateFromKey = (key: string) => {
   const [year, month, day] = key.split('-').map(Number)
