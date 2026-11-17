@@ -37,6 +37,8 @@ const activeTab = ref<'home' | 'meals' | 'shopping' | 'insights'>('home')
 const theme = ref<'dark' | 'light'>((localStorage.getItem('diet-theme') as 'dark' | 'light') || 'dark')
 const search = ref('')
 const excludeVariableMeals = ref(true)
+const storedMobilePlanView = localStorage.getItem('diet-mobile-plan-view')
+const mobilePlanView = ref<'inline' | 'table'>(storedMobilePlanView === 'table' ? 'table' : 'inline')
 const modal = ref(false)
 const editing = ref<Meal | null>(null)
 const viewing = ref(false)
@@ -410,6 +412,7 @@ watch(theme, value => {
   localStorage.setItem('diet-theme', value)
 }, { immediate: true })
 watch(locale, value => localStorage.setItem('diet-language', value))
+watch(mobilePlanView, value => localStorage.setItem('diet-mobile-plan-view', value))
 
 async function login() {
   if (!auth) return
@@ -855,8 +858,12 @@ function ingredientKeyFor(name: string): string {
             <button class="icon-btn plan-arrow" :title="t('next')" @click="shiftWeek(1)"><ChevronRight /></button>
           </div>
         </div>
+        <div class="mobile-plan-view-toolbar" role="group" :aria-label="t('weekView')">
+          <button type="button" :class="{ active: mobilePlanView === 'inline' }" :aria-pressed="mobilePlanView === 'inline'" @click="mobilePlanView = 'inline'">{{ t('inlineView') }}</button>
+          <button type="button" :class="{ active: mobilePlanView === 'table' }" :aria-pressed="mobilePlanView === 'table'" @click="mobilePlanView = 'table'">{{ t('tableView') }}</button>
+        </div>
 
-        <div class="plan-day-list">
+        <div class="plan-day-list" :class="{ 'plan-day-list-table': mobilePlanView === 'table' }">
           <article v-for="day in weekDays" :key="dateKey(day)" :data-day-key="dateKey(day)" class="plan-day-row" :class="{ 'plan-day-row-today': dateKey(day) === todayKey, 'plan-day-row-focused': dateKey(day) === currentKey }">
             <header class="plan-day-heading">
               <div>

@@ -462,8 +462,86 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .plan-toolbar { width: auto; flex: 0 0 auto; gap: 5px; }
   .plan-toolbar .secondary-btn { min-height: 36px; padding: 8px 9px; font-size: 10px; white-space: nowrap; }
   .plan-arrow { width: 34px; height: 35px; flex: 0 0 34px; }
+  .mobile-plan-view-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    gap: 3px;
+    margin: -8px 0 12px;
+    padding: 3px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--panel);
+  }
+  .mobile-plan-view-toolbar button {
+    min-height: 30px;
+    padding: 6px 12px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    color: var(--muted);
+    background: transparent;
+    font-size: 10px;
+    font-weight: 800;
+  }
+  .mobile-plan-view-toolbar button.active {
+    border-color: color-mix(in srgb, var(--accent) 24%, transparent);
+    color: var(--accent);
+    background: var(--soft);
+  }
   .plan-day-list { gap: 9px; padding-bottom: 15px; }
   .plan-day-row { grid-template-columns: minmax(0, 1fr); }
+  .plan-day-list.plan-day-list-table {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+  .plan-day-list-table .plan-day-row {
+    width: 680px;
+    min-width: 680px;
+    grid-template-columns: 90px minmax(0, 1fr);
+  }
+  .plan-day-list-table .plan-day-heading {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    min-height: 76px;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    padding: 8px 5px;
+    border-right: 1px solid var(--line);
+    border-bottom: 0;
+    background: var(--panel);
+    text-align: center;
+  }
+  .plan-day-list-table .plan-day-heading h2 { font-size: 14px; }
+  .plan-day-list-table .today-marker { padding: 3px 5px; font-size: 8px; }
+  .plan-day-list-table .plan-day-meals { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .plan-day-list-table .plan-meal-slot {
+    min-height: 76px;
+    gap: 6px;
+    padding: 7px 6px;
+    border-top: 0;
+    border-left: 1px solid var(--line);
+  }
+  .plan-day-list-table .plan-meal-slot:first-child { border-left: 1px solid var(--line); }
+  .plan-day-list-table .plan-meal-meta { align-items: flex-start; flex-direction: column; gap: 2px; }
+  .plan-day-list-table .day-meal-type { max-width: 100%; font-size: 7px; }
+  .plan-day-list-table .day-meal-time { font-size: 9px; }
+  .plan-day-list-table .day-meal-picker-actions { gap: 3px; }
+  .plan-day-list-table .day-meal-select .custom-select-trigger { min-height: 32px; padding: 6px 5px; font-size: 9px; }
+  .plan-day-list-table .day-meal-view-btn,
+  .plan-day-list-table .day-meal-actions .clear-meal-btn {
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+    min-height: 26px;
+    flex-basis: 26px;
+  }
+  .plan-day-list-table .day-meal-view-btn svg,
+  .plan-day-list-table .day-meal-actions .clear-meal-btn svg { width: 12px; height: 12px; }
   .plan-day-heading { min-height: 58px; padding: 10px 13px; border-right: 0; border-bottom: 1px solid var(--line); }
   .plan-day-heading h2 { font-size: 17px; }
   .plan-day-meals { grid-template-columns: minmax(0, 1fr); }
