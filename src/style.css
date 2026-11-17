@@ -302,6 +302,23 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 /* Meal and ingredient editor. */
 .modal-backdrop { position: fixed; inset: 0; z-index: 90; display: flex; align-items: center; justify-content: center; padding: 18px; background: #060b15b8; backdrop-filter: blur(8px); }
 .meal-modal { width: min(700px, 100%); max-height: min(90vh, 900px); overflow: auto; padding: 25px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); box-shadow: var(--shadow); }
+.meal-modal.meal-view-modal { width: min(920px, 100%); }
+.meal-view-content { display: grid; gap: 11px; }
+.meal-view-section-heading { margin-bottom: 0; }
+.meal-view-section-heading h3 { margin: 0; color: var(--text); font-size: 14px; }
+.meal-view-ingredient { min-width: 0; display: grid; gap: 10px; padding: 13px 14px; border: 1px solid var(--line); border-radius: 11px; background: var(--panel-soft); }
+.meal-view-ingredient.has-nutrition { border-color: color-mix(in srgb, var(--success) 42%, var(--line)); }
+.meal-view-ingredient.missing-nutrition { border-color: color-mix(in srgb, var(--danger) 38%, var(--line)); }
+.meal-view-ingredient-heading { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.meal-view-ingredient-heading h3 { min-width: 0; overflow: hidden; margin: 0; color: var(--text); font-size: 13px; font-weight: 800; text-overflow: ellipsis; }
+.meal-view-quantity { flex: 0 0 auto; color: var(--accent); font: 600 11px 'IBM Plex Mono', monospace; }
+.meal-view-nutrition { min-width: 0; display: grid; grid-template-columns: 155px minmax(0, 1fr); align-items: center; gap: 12px; padding-top: 9px; border-top: 1px solid var(--line); }
+.meal-view-nutrition-basis { color: var(--muted); font-size: 9px; font-weight: 700; white-space: nowrap; }
+.meal-view-nutrition-values { min-width: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.meal-view-nutrition-values > span { min-width: 0; display: grid; gap: 3px; }
+.meal-view-nutrition-values small { overflow: hidden; color: var(--muted); font-size: 8px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.meal-view-nutrition-values strong { overflow: hidden; color: var(--text); font: 600 10px 'IBM Plex Mono', monospace; text-overflow: ellipsis; white-space: nowrap; }
+.meal-view-no-nutrition { margin: 0; color: var(--muted); font-size: 10px; }
 .modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; margin-bottom: 22px; }
 .modal-header h2 { margin: 6px 0 0; font-size: 23px; font-weight: 800; letter-spacing: -.8px; }
 .meal-modal form { display: grid; gap: 15px; }
@@ -487,6 +504,9 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .add-store-link { min-height: 34px; padding: 6px 8px; }
   .remove-ingredient { margin-left: auto; }
   .meal-modal { padding: 17px; }
+  .meal-view-ingredient { gap: 8px; padding: 11px; }
+  .meal-view-nutrition { grid-template-columns: minmax(0, 1fr); gap: 7px; }
+  .meal-view-nutrition-values { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px 7px; }
   .nutrition-input-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .insights-heading { align-items: flex-start !important; flex-direction: column; gap: 8px; }
   .insights-week-label { font-size: 10px; }

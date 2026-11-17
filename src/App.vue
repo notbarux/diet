@@ -1080,10 +1080,35 @@ function ingredientKeyFor(name: string): string {
     </div>
 
     <div v-if="modal" class="modal-backdrop" @click.self="modal = false">
-      <section class="meal-modal">
-        <div class="modal-header"><div><p class="eyebrow">MEAL LIBRARY</p><h2>{{ editing ? (viewing ? t('viewMeal') : t('editMeal')) : t('addMeal') }}</h2></div><button class="icon-btn" :aria-label="t('close')" @click="modal = false"><X /></button></div>
+      <section class="meal-modal" :class="{ 'meal-view-modal': viewing }">
+        <div class="modal-header"><div><p class="eyebrow">MEAL LIBRARY</p><h2>{{ viewing ? form.name : (editing ? t('editMeal') : t('addMeal')) }}</h2></div><button class="icon-btn" :aria-label="t('close')" @click="modal = false"><X /></button></div>
         <form @submit.prevent="saveMeal">
-          <fieldset class="meal-editor-fieldset" :disabled="viewing">
+          <div v-if="viewing" class="meal-view-content">
+            <div class="ingredients-editor-heading meal-view-section-heading"><h3>{{ t('ingredients') }}</h3></div>
+            <p v-if="!form.ingredients.length" class="empty-form-hint">{{ t('ingredientsEmpty') }}</p>
+            <article
+              v-for="ingredient in form.ingredients"
+              :key="ingredient.localId"
+              class="meal-view-ingredient"
+              :class="ingredientHasNutrition(ingredient) ? 'has-nutrition' : 'missing-nutrition'"
+            >
+              <div class="meal-view-ingredient-heading">
+                <h3>{{ ingredient.name }}</h3>
+                <span v-if="ingredient.quantity" class="meal-view-quantity">{{ quantityLabel(ingredient.quantity, ingredient.quantityUnit) }}</span>
+              </div>
+              <div class="meal-view-nutrition">
+                <div class="meal-view-nutrition-basis">{{ t('nutrition') }} · {{ t('nutritionPer') }} {{ ingredient.nutritionBasis === 'unit' ? t('perUnit') : t('per100g') }}</div>
+                <div v-if="ingredientHasNutrition(ingredient)" class="meal-view-nutrition-values">
+                  <span v-for="metric in nutrientMetrics" :key="metric.key">
+                    <small>{{ metric.shortLabel }}</small>
+                    <strong>{{ formatNutritionValue(ingredient.nutrition?.[metric.key] ?? null, metric.unit) }}</strong>
+                  </span>
+                </div>
+                <p v-else class="meal-view-no-nutrition">{{ t('nutritionMissing') }}</p>
+              </div>
+            </article>
+          </div>
+          <fieldset v-else class="meal-editor-fieldset">
           <label class="form-field">{{ t('mealName') }}<input v-model="form.name" required maxlength="90" autofocus /></label>
           <div class="ingredients-editor">
             <div class="ingredients-editor-heading"><h3>{{ t('ingredients') }}</h3><button v-if="!viewing" type="button" class="secondary-btn small-btn" @click="addIngredient"><Plus :size="15" />{{ t('addIngredient') }}</button></div>
