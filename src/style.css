@@ -86,7 +86,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .top-nav-item:hover { border-color: var(--line); color: var(--text); background: var(--panel-soft); }
 .top-nav-item.active { border-color: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); background: var(--soft); }
 
-.main-content { width: min(1240px, 100%); min-height: calc(100vh - 103px); margin: 0 auto; padding: 34px clamp(18px, 5vw, 70px) 70px; }
+.main-content { width: min(1680px, 100%); min-height: calc(100vh - 103px); margin: 0 auto; padding: 34px clamp(24px, 3vw, 48px) 70px; }
 .page { width: 100%; margin: 0 auto; animation: appear .25s ease both; }
 .page-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 22px; margin: 0 0 30px; }
 .page-heading h1 { margin: 8px 0 5px; font-size: clamp(32px, 4vw, 43px); font-weight: 800; letter-spacing: -2px; line-height: 1.12; }
@@ -224,7 +224,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .shopping-week-selector .custom-select-trigger { min-height: 40px; }
 .shopping-page-heading .store-priority-trigger { gap: 8px; }
 .shopping-groups { display: grid; gap: 25px; }
-.shopping-store-group { max-width: 900px; overflow: visible; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
+.shopping-store-group { max-width: none; overflow: visible; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
 .shopping-store-heading { min-height: 52px; display: flex; align-items: center; gap: 10px; padding: 0 17px; border-bottom: 1px solid var(--line); color: var(--accent); }
 .shopping-store-heading h2 { margin: 0; color: var(--text); font-size: 13px; font-weight: 800; }
 .shopping-store-heading > span { margin-left: auto; color: var(--muted); font: 11px 'IBM Plex Mono', monospace; }
@@ -259,7 +259,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 
 
 /* Nutrition dashboard: totals are derived from the selected Home week and saved recipe ingredients. */
-.insights-page { max-width: 1160px; }
+.insights-page { max-width: 1500px; }
 .insights-heading { align-items: center !important; gap: 15px; }
 .insights-intro { margin: 7px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
 .insights-week-label { flex: 0 0 auto; color: var(--muted); font: 600 11px 'IBM Plex Mono', monospace; }
