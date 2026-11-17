@@ -1062,7 +1062,7 @@ function ingredientKeyFor(name: string): string {
                       </div>
                     </Teleport>
                   </div>
-                  <div v-if="plannedMeal(dateKey(day), type)" class="day-meal-actions">
+                  <div v-if="plannedMeal(dateKey(day), type) && mobilePlanView !== 'grid'" class="day-meal-actions">
                     <button type="button" class="icon-btn day-meal-view-btn" :title="'View meal'" :aria-label="'View meal'" @click="viewPlannedMeal(day, type)"><Eye :size="15" /></button>
                     <button type="button" class="icon-btn clear-meal-btn" :title="'Clear meal'" :aria-label="'Clear meal'" @click="clearPlanMeal(day, type)"><X :size="15" /></button>
                   </div>
@@ -1244,18 +1244,20 @@ function ingredientKeyFor(name: string): string {
               <span class="shopping-filter-switch" aria-hidden="true"><span></span></span>
               <span class="shopping-filter-label">{{ 'Exclude already at home' }}</span>
             </label>
-            <div class="custom-select-wrap shopping-week-selector" @click.stop>
-              <button class="custom-select-trigger" :aria-expanded="openPickerKey === 'shopping-week'" @click="togglePicker('shopping-week', $event)">
-                <span>{{ shoppingWeekSelection === 'this' ? 'This week' : 'Next week' }}</span><ChevronRight class="select-chevron" :size="15" />
-              </button>
-              <Teleport to="body">
-                <div v-if="openPickerKey === 'shopping-week'" class="custom-select-menu dropdown-menu-portal" :style="dropdownStyle" @click.stop>
-                  <button class="custom-select-option" :class="{ selected: shoppingWeekSelection === 'this' }" @click="selectShoppingWeek('this')">{{ 'This week' }}</button>
-                  <button class="custom-select-option" :class="{ selected: shoppingWeekSelection === 'next' }" @click="selectShoppingWeek('next')">{{ 'Next week' }}</button>
-                </div>
-              </Teleport>
+            <div class="shopping-week-actions">
+              <div class="custom-select-wrap shopping-week-selector" @click.stop>
+                <button class="custom-select-trigger" :aria-expanded="openPickerKey === 'shopping-week'" @click="togglePicker('shopping-week', $event)">
+                  <span>{{ shoppingWeekSelection === 'this' ? 'This week' : 'Next week' }}</span><ChevronRight class="select-chevron" :size="15" />
+                </button>
+                <Teleport to="body">
+                  <div v-if="openPickerKey === 'shopping-week'" class="custom-select-menu dropdown-menu-portal" :style="dropdownStyle" @click.stop>
+                    <button class="custom-select-option" :class="{ selected: shoppingWeekSelection === 'this' }" @click="selectShoppingWeek('this')">{{ 'This week' }}</button>
+                    <button class="custom-select-option" :class="{ selected: shoppingWeekSelection === 'next' }" @click="selectShoppingWeek('next')">{{ 'Next week' }}</button>
+                  </div>
+                </Teleport>
+              </div>
+              <button class="secondary-btn store-priority-trigger" type="button" title="Store priorities" aria-label="Store priorities" @click="openStorePriorityModal"><SlidersHorizontal :size="16" /></button>
             </div>
-            <button class="secondary-btn store-priority-trigger" type="button" title="Store priorities" aria-label="Store priorities" @click="openStorePriorityModal"><SlidersHorizontal :size="16" /></button>
           </div>
         </div>
         <div v-if="visibleShoppingGroups.length" class="shopping-groups">

@@ -190,8 +190,8 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 /* Plan uses one horizontal row per day, with responsive meal slots. */
 .mobile-plan-view-toolbar { display: none; }
 .plan-heading { align-items: center; }
-.plan-toolbar { display: flex; align-items: center; gap: 7px; }
-.week-range-display { min-width: 105px; padding: 0 4px; color: var(--muted); font: 600 10px 'IBM Plex Mono', monospace; text-align: center; white-space: nowrap; }
+.plan-toolbar { display: flex; align-items: center; gap: 4px; }
+.week-range-display { min-width: 105px; padding: 0 2px; color: var(--muted); font: 600 10px 'IBM Plex Mono', monospace; text-align: center; white-space: nowrap; }
 .plan-arrow { width: 39px; height: 39px; border-color: var(--line); background: var(--panel); }
 .plan-arrow:disabled { opacity: .3; cursor: not-allowed; }
 .plan-day-list { width: 100%; display: grid; gap: 10px; padding: 3px 0 18px; }
@@ -230,6 +230,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .shopping-filter-toggle input:checked + .shopping-filter-switch > span { transform: translateX(14px); background: var(--accent-ink); }
 .shopping-filter-toggle input:focus-visible + .shopping-filter-switch { outline: 2px solid var(--accent); outline-offset: 3px; }
 .shopping-filter-toggle:has(input:checked) { color: var(--text); }
+.shopping-week-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 6px; }
 .shopping-week-selector { width: 113px; flex: 0 0 auto; }
 .shopping-week-selector .custom-select-trigger { min-height: 40px; gap: 5px; padding-right: 8px; padding-left: 9px; }
 .shopping-week-selector .custom-select-trigger > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -508,7 +509,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .row-actions .icon-btn svg { width: 14px; height: 14px; }
   .plan-heading { align-items: center !important; flex-direction: row; justify-content: space-between; gap: 8px; }
   .plan-heading h1 { margin: 0; font-size: 30px; white-space: nowrap; }
-  .plan-toolbar { width: auto; flex: 0 0 auto; gap: 5px; }
+  .plan-toolbar { width: auto; flex: 0 0 auto; gap: 2px; }
   .week-range-display { min-width: 94px; font-size: 9px; }
   .plan-arrow { width: 34px; height: 35px; flex: 0 0 34px; }
   .mobile-plan-view-toolbar {
@@ -662,7 +663,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .top-nav-item svg { width: 12px; height: 12px; }
   .plan-heading { gap: 5px; }
   .plan-heading h1 { font-size: 27px; }
-  .plan-toolbar { gap: 3px; }
+  .plan-toolbar { gap: 2px; }
   .plan-toolbar .secondary-btn { min-height: 34px; padding: 7px 6px; font-size: 9px; }
   .plan-arrow { width: 30px; height: 32px; flex-basis: 30px; }
   .day-meal-picker-actions { gap: 3px; }
