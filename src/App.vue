@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
 import packageJson from '../package.json'
 import { onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut, type User } from 'firebase/auth'
 import { collection, deleteDoc, deleteField, doc, getDoc, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
@@ -19,13 +18,12 @@ import type {
 import { emptyNutrition, normalizeNutrition, summarizeNutrition } from './lib/nutrition'
 import {
   ChefHat, Utensils, Plus, ChevronLeft, ChevronRight, Sun, Moon,
-  Languages, Search, LogOut, X, Trash2, Pencil, Sparkles, ShoppingBasket,
-  List, Table2,
+  Search, LogOut, X, Trash2, Pencil, Sparkles, ShoppingBasket,
+  List, LayoutGrid,
   Check, Store as StoreIcon, House, ShoppingCart, SlidersHorizontal, ChartPie,
   ChevronUp, ChevronDown, Eye,
 } from '@lucide/vue'
 
-const { t, locale } = useI18n()
 const appVersion = packageJson.version
 const user = ref<User | null>(null)
 const access = ref(false)
@@ -38,7 +36,7 @@ const activeTab = ref<'home' | 'meals' | 'shopping' | 'insights'>('home')
 const theme = ref<'dark' | 'light'>((localStorage.getItem('diet-theme') as 'dark' | 'light') || 'dark')
 const search = ref('')
 const excludeVariableMeals = ref(true)
-const mobilePlanView = ref<'inline' | 'table'>('inline')
+const mobilePlanView = ref<'inline' | 'grid'>('inline')
 const modal = ref(false)
 const editing = ref<Meal | null>(null)
 const viewing = ref(false)
@@ -74,6 +72,8 @@ const priorityModalStores = computed(() => {
 })
 
 const mealTypes: MealType[] = ['breakfast', 'lunch', 'snack', 'dinner']
+const tabLabels = { home: 'Home', meals: 'Meals', shopping: 'Shopping', insights: 'Insights' } as const
+const mealTypeLabels: Record<MealType, string> = { breakfast: 'Breakfast', lunch: 'Lunch', snack: 'Snack', dinner: 'Dinner' }
 const mealTimes = ['10:00', '13:00', '16:00', '20:00']
 const today = new Date()
 const dateKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
@@ -105,13 +105,13 @@ const selectedShoppingWeek = computed(() => {
   return dateKey(monday)
 })
 const canGoToPreviousWeek = computed(() => dateKey(startOfWeek(selectedDate.value)) > planStartWeekKey)
-const dateLabel = (date: Date) => new Intl.DateTimeFormat(locale.value === 'it' ? 'it-IT' : 'en-US', {
+const dateLabel = (date: Date) => new Intl.DateTimeFormat('en-US', {
   weekday: 'short', day: 'numeric', month: 'short',
 }).format(date)
-const fullDate = (date: Date) => new Intl.DateTimeFormat(locale.value === 'it' ? 'it-IT' : 'en-US', {
+const fullDate = (date: Date) => new Intl.DateTimeFormat('en-US', {
   weekday: 'long', day: 'numeric', month: 'long',
 }).format(date)
-const monthDay = (date: Date) => new Intl.DateTimeFormat(locale.value === 'it' ? 'it-IT' : 'en-US', {
+const monthDay = (date: Date) => new Intl.DateTimeFormat('en-US', {
   day: 'numeric', month: 'short',
 }).format(date)
 const sortedMeals = computed(() => meals.value
@@ -127,12 +127,12 @@ const weekDays = computed(() => {
   })
 })
 const nutrientMetrics = computed(() => [
-  { key: 'calories' as const, label: t('calories'), shortLabel: 'kcal', unit: 'kcal' },
-  { key: 'carbs' as const, label: t('carbohydrates'), shortLabel: t('carbsShort'), unit: 'g' },
-  { key: 'protein' as const, label: t('protein'), shortLabel: t('proteinShort'), unit: 'g' },
-  { key: 'fat' as const, label: t('fat'), shortLabel: t('fat'), unit: 'g' },
-  { key: 'fiber' as const, label: t('fiber'), shortLabel: t('fiber'), unit: 'g' },
-  { key: 'salt' as const, label: t('salt'), shortLabel: t('salt'), unit: 'g' },
+  { key: 'calories' as const, label: 'Calories', shortLabel: 'kcal', unit: 'kcal' },
+  { key: 'carbs' as const, label: 'Carbohydrates', shortLabel: 'Carbs', unit: 'g' },
+  { key: 'protein' as const, label: 'Protein', shortLabel: 'Protein', unit: 'g' },
+  { key: 'fat' as const, label: 'Fat', shortLabel: 'Fat', unit: 'g' },
+  { key: 'fiber' as const, label: 'Fiber', shortLabel: 'Fiber', unit: 'g' },
+  { key: 'salt' as const, label: 'Salt', shortLabel: 'Salt', unit: 'g' },
 ])
 const insightDays = computed(() => weekDays.value.map(date => {
   const key = dateKey(date)
@@ -411,7 +411,6 @@ watch(theme, value => {
   document.documentElement.dataset.theme = value
   localStorage.setItem('diet-theme', value)
 }, { immediate: true })
-watch(locale, value => localStorage.setItem('diet-language', value))
 
 async function login() {
   if (!auth) return
@@ -473,16 +472,16 @@ function storeNames(storeIds: string[]): string {
 }
 function storeSelectionLabel(storeIds: string[]): string {
   const selectedCount = storeIds.length
-  if (!selectedCount) return t('chooseStores')
-  if (selectedCount === 1) return storeNames(storeIds) || t('chooseStores')
-  return t('storesSelected', { count: selectedCount })
+  if (!selectedCount) return 'Choose stores'
+  if (selectedCount === 1) return storeNames(storeIds) || 'Choose stores'
+  return `${selectedCount} shops selected`
 }
 function quantityUnitShort(unit: IngredientQuantityUnit): string {
-  return unit === 'unit' ? t('quantityUnitPiecesShort') : 'g'
+  return unit === 'unit' ? 'pcs' : 'g'
 }
 function quantityLabel(quantity: string, unit: IngredientQuantityUnit): string {
   if (!quantity) return ''
-  const suffix = unit === 'unit' && locale.value === 'en' && Number(quantity) === 1 ? 'pc' : quantityUnitShort(unit)
+  const suffix = unit === 'unit' && Number(quantity) === 1 ? 'pc' : quantityUnitShort(unit)
   return `${quantity} ${suffix}`
 }
 function ingredientHasNutrition(ingredient: Pick<MealIngredient, 'nutrition'>): boolean {
@@ -510,7 +509,7 @@ function setIngredientNutrition(ingredient: MealIngredient & { localId: string }
 function formatNutritionValue(value: number | null, unit: string): string {
   if (value === null || !Number.isFinite(value)) return '—'
   const rounded = unit === 'kcal' ? Math.round(value) : Number(value.toFixed(1))
-  return `${new Intl.NumberFormat(locale.value === 'it' ? 'it-IT' : 'en-US').format(rounded)} ${unit}`
+  return `${new Intl.NumberFormat('en-US').format(rounded)} ${unit}`
 }
 function changeIngredientNutritionBasis(ingredient: MealIngredient, event: Event) {
   const basis = (event.target as HTMLSelectElement).value
@@ -520,11 +519,11 @@ function changeIngredientNutritionBasis(ingredient: MealIngredient, event: Event
   ingredient.nutrition = undefined
 }
 function nutritionCoverageText(metric: { value: number | null; knownIngredients: number; totalIngredients: number }): string {
-  if (!metric.totalIngredients || !metric.knownIngredients) return t('nutritionMissing')
+  if (!metric.totalIngredients || !metric.knownIngredients) return 'Not enough data'
   if (metric.knownIngredients < metric.totalIngredients) {
-    return t('nutritionPartialCoverage', { known: metric.knownIngredients, total: metric.totalIngredients })
+    return `${metric.knownIngredients}/${metric.totalIngredients} ingredients included`
   }
-  return t('nutritionComplete')
+  return 'All ingredients included'
 }
 
 function openMeal(meal?: Meal, readOnly = false) {
@@ -606,7 +605,7 @@ async function saveMeal() {
   modal.value = false
 }
 async function removeMeal(meal: Meal) {
-  if (!db || !confirm(t('confirmDelete'))) return
+  if (!db || !confirm('Delete this meal?')) return
   await deleteDoc(doc(db, 'meals', meal.id))
 }
 async function addStore(localId: string) {
@@ -733,7 +732,7 @@ const shoppingItems = computed(() => {
       storeIds: availableStores.map(store => store.id),
       storeOptions: availableStores,
       storeId,
-      storeName: preferredStore?.name || t('noStore'),
+      storeName: preferredStore?.name || 'No store',
       quantity: combineQuantities(item.quantities, item.quantityUnit),
       key,
       status: shoppingStatuses.value[key] || availableStores
@@ -759,7 +758,7 @@ const shoppingGroups = computed(() => {
     .sort(([a], [b]) => (priorityRank.get(a) ?? Number.MAX_SAFE_INTEGER) - (priorityRank.get(b) ?? Number.MAX_SAFE_INTEGER))
     .map(([storeId, items]) => ({
       id: storeId,
-      name: stores.value.find(store => store.id === storeId)?.name || t('noStore'),
+      name: stores.value.find(store => store.id === storeId)?.name || 'No store',
       items,
     }))
 })
@@ -814,18 +813,18 @@ function ingredientKeyFor(name: string): string {
 
 <template>
   <div v-if="!firebaseConfigured" class="auth-screen center-state">
-    <div class="state-icon"><Sparkles /></div><h1>{{ t('welcome') }}</h1><p>{{ t('setup') }}</p><code>cp .env.example .env.local</code>
+    <div class="state-icon"><Sparkles /></div><h1>{{ 'Your personal meal planner' }}</h1><p>{{ 'Configure Firebase to get started.' }}</p><code>cp .env.example .env.local</code>
   </div>
   <div v-else-if="checking" class="auth-screen center-state"><div class="loader" /><p>Loading…</p></div>
   <div v-else-if="!user" class="auth-screen login-state">
     <div class="hero-orbit"><div class="hero-plate"><Utensils :size="34" /></div></div>
-    <p class="eyebrow">A MORE MINDFUL ROUTINE</p><h1>{{ t('welcome') }}</h1><p class="muted">Plan ahead. Eat well. Find your rhythm.</p>
-    <button class="primary-btn google-btn" @click="login"><span class="google-g">G</span>{{ t('signIn') }}</button>
+    <p class="eyebrow">A MORE MINDFUL ROUTINE</p><h1>{{ 'Your personal meal planner' }}</h1><p class="muted">Plan ahead. Eat well. Find your rhythm.</p>
+    <button class="primary-btn google-btn" @click="login"><span class="google-g">G</span>{{ 'Continue with Google' }}</button>
     <p v-if="authError" class="error-text">{{ authError }}</p>
   </div>
   <div v-else-if="!access" class="auth-screen center-state">
-    <div class="state-icon"><X /></div><h2>{{ t('accessDenied') }}</h2><p class="muted">Ask the administrator to enable your UID in Firestore.</p>
-    <code>{{ user.uid }}</code><button class="text-btn" @click="logout">{{ t('signOut') }}</button>
+    <div class="state-icon"><X /></div><h2>{{ 'This account is not enabled for this app.' }}</h2><p class="muted">Ask the administrator to enable your UID in Firestore.</p>
+    <code>{{ user.uid }}</code><button class="text-btn" @click="logout">{{ 'Sign out' }}</button>
   </div>
 
   <div v-else class="app-shell">
@@ -834,15 +833,14 @@ function ingredientKeyFor(name: string): string {
         <div class="brand top-brand"><div class="brand-mark"><Utensils :size="18" /></div><span class="brand-copy"><span class="brand-name">diet<span class="brand-dot">.</span></span><span class="brand-version">v{{ appVersion }}</span></span></div>
         <div class="header-date">{{ fullDate(new Date()) }}</div>
         <div class="top-actions">
-          <button class="icon-btn" @click="theme = theme === 'dark' ? 'light' : 'dark'" :title="t(theme === 'dark' ? 'light' : 'dark')"><Sun v-if="theme === 'dark'" /><Moon v-else /></button>
-          <button class="icon-btn" @click="locale = locale === 'en' ? 'it' : 'en'" :title="t('language')"><Languages /></button>
-          <button class="icon-btn" @click="logout" :title="t('signOut')"><LogOut /></button>
+          <button class="icon-btn" @click="theme = theme === 'dark' ? 'light' : 'dark'" :title="theme === 'dark' ? 'Light mode' : 'Dark mode'"><Sun v-if="theme === 'dark'" /><Moon v-else /></button>
+          <button class="icon-btn" @click="logout" :title="'Sign out'"><LogOut /></button>
         </div>
       </div>
       <nav class="top-nav" aria-label="Main navigation">
         <button v-for="tab in ['home', 'meals', 'shopping', 'insights'] as const" :key="tab" :class="['top-nav-item', { active: activeTab === tab }]" @click="activeTab = tab">
           <House v-if="tab === 'home'" /><ChefHat v-else-if="tab === 'meals'" /><ShoppingBasket v-else-if="tab === 'shopping'" /><ChartPie v-else />
-          <span>{{ t(tab) }}</span>
+          <span>{{ tabLabels[tab] }}</span>
         </button>
       </nav>
     </header>
@@ -850,41 +848,38 @@ function ingredientKeyFor(name: string): string {
     <main class="main-content">
       <section v-if="activeTab === 'home'" class="page plan-page">
         <div class="page-heading compact plan-heading section-heading">
-          <h1>{{ t('home') }}</h1>
+          <h1>{{ 'Home' }}</h1>
           <div class="plan-toolbar">
-            <button class="icon-btn plan-arrow" :title="t('previous')" :disabled="!canGoToPreviousWeek" @click="shiftWeek(-1)"><ChevronLeft /></button>
-            <button class="secondary-btn this-week-btn" @click="goToThisWeek">{{ t('thisWeek') }}</button>
-            <button class="icon-btn plan-arrow" :title="t('next')" @click="shiftWeek(1)"><ChevronRight /></button>
+            <button class="icon-btn plan-arrow" :title="'Previous week'" :disabled="!canGoToPreviousWeek" @click="shiftWeek(-1)"><ChevronLeft /></button>
+            <div class="mobile-plan-view-toolbar" role="group" aria-label="Weekly view">
+              <button type="button" class="mobile-plan-view-button" :class="{ active: mobilePlanView === 'inline' }" :aria-pressed="mobilePlanView === 'inline'" title="Inline view" aria-label="Inline view" @click="mobilePlanView = 'inline'"><List :size="16" /></button>
+              <button type="button" class="mobile-plan-view-button" :class="{ active: mobilePlanView === 'grid' }" :aria-pressed="mobilePlanView === 'grid'" title="Grid view" aria-label="Grid view" @click="mobilePlanView = 'grid'"><LayoutGrid :size="16" /></button>
+            </div>
+            <button class="secondary-btn this-week-btn" @click="goToThisWeek">{{ 'This week' }}</button>
+            <button class="icon-btn plan-arrow" :title="'Next week'" @click="shiftWeek(1)"><ChevronRight /></button>
           </div>
-        </div>
-        <div class="mobile-plan-view-toolbar" role="group" :aria-label="t('weekView')">
-          <button type="button" class="mobile-plan-view-button" :class="{ active: mobilePlanView === 'inline' }" :aria-pressed="mobilePlanView === 'inline'" :title="t('inlineView')" :aria-label="t('inlineView')" @click="mobilePlanView = 'inline'"><List :size="16" /></button>
-          <button type="button" class="mobile-plan-view-button" :class="{ active: mobilePlanView === 'table' }" :aria-pressed="mobilePlanView === 'table'" :title="t('tableView')" :aria-label="t('tableView')" @click="mobilePlanView = 'table'"><Table2 :size="16" /></button>
         </div>
 
-        <div class="plan-day-list" :class="{ 'plan-day-list-table': mobilePlanView === 'table' }">
-          <div v-if="mobilePlanView === 'table'" class="plan-table-header">
-            <span class="plan-table-day-label">{{ t('day') }}</span>
-            <span v-for="type in mealTypes" :key="type">{{ t(type) }}</span>
-          </div>
+        <div class="plan-day-list" :class="{ 'plan-day-list-grid': mobilePlanView === 'grid' }">
+
           <article v-for="day in weekDays" :key="dateKey(day)" :data-day-key="dateKey(day)" class="plan-day-row" :class="{ 'plan-day-row-today': dateKey(day) === todayKey, 'plan-day-row-focused': dateKey(day) === currentKey }">
             <header class="plan-day-heading">
               <div>
-                <span class="day-weekday">{{ new Intl.DateTimeFormat(locale === 'it' ? 'it-IT' : 'en-US', { weekday: 'long' }).format(day) }}</span>
+                <span class="day-weekday">{{ new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(day) }}</span>
                 <h2>{{ monthDay(day) }}</h2>
               </div>
-              <span v-if="dateKey(day) === todayKey" class="today-marker">{{ t('today') }}</span>
+              <span v-if="dateKey(day) === todayKey" class="today-marker">{{ 'Today' }}</span>
             </header>
             <div class="plan-day-meals">
               <div v-for="(type, index) in mealTypes" :key="type" class="plan-meal-slot">
                 <div class="plan-meal-meta">
-                  <span class="day-meal-type">{{ t(type) }}</span>
+                  <span class="day-meal-type">{{ mealTypeLabels[type] }}</span>
                   <span class="day-meal-time">{{ mealTimes[index] }}</span>
                 </div>
                 <div class="meal-picker-actions day-meal-picker-actions">
                   <div class="custom-select-wrap day-meal-select" @click.stop>
                     <button class="custom-select-trigger" :aria-expanded="openPickerKey === `plan-${dateKey(day)}-${type}`" @click="togglePicker(`plan-${dateKey(day)}-${type}`, $event)">
-                      <span>{{ plannedMealName(dateKey(day), type) || t('selectDish') }}</span><ChevronRight class="select-chevron" :size="15" />
+                      <span>{{ plannedMealName(dateKey(day), type) || 'Choose a meal' }}</span><ChevronRight class="select-chevron" :size="15" />
                     </button>
                     <Teleport to="body">
                       <div v-if="openPickerKey === `plan-${dateKey(day)}-${type}`" class="custom-select-menu dropdown-menu-portal" :style="dropdownStyle" @click.stop>
@@ -893,8 +888,8 @@ function ingredientKeyFor(name: string): string {
                     </Teleport>
                   </div>
                   <div v-if="plannedMeal(dateKey(day), type)" class="day-meal-actions">
-                    <button type="button" class="icon-btn day-meal-view-btn" :title="t('viewMeal')" :aria-label="t('viewMeal')" @click="viewPlannedMeal(day, type)"><Eye :size="15" /></button>
-                    <button type="button" class="icon-btn clear-meal-btn" :title="t('clearMeal')" :aria-label="t('clearMeal')" @click="clearPlanMeal(day, type)"><X :size="15" /></button>
+                    <button type="button" class="icon-btn day-meal-view-btn" :title="'View meal'" :aria-label="'View meal'" @click="viewPlannedMeal(day, type)"><Eye :size="15" /></button>
+                    <button type="button" class="icon-btn clear-meal-btn" :title="'Clear meal'" :aria-label="'Clear meal'" @click="clearPlanMeal(day, type)"><X :size="15" /></button>
                   </div>
                 </div>
               </div>
@@ -906,15 +901,15 @@ function ingredientKeyFor(name: string): string {
 
       <section v-else-if="activeTab === 'meals'" class="page">
         <div class="page-heading compact section-heading meals-page-heading">
-          <h1>{{ t('meals') }}</h1>
+          <h1>{{ 'Meals' }}</h1>
           <div class="meals-heading-actions">
             <label class="meals-filter-toggle">
               <input v-model="excludeVariableMeals" type="checkbox" />
               <span class="meals-filter-switch" aria-hidden="true"><span></span></span>
-              <span>{{ t('excludeVariableMeals') }}</span>
+              <span>{{ 'Exclude variable meals' }}</span>
             </label>
-            <div class="search-box meals-search-box"><Search :size="17" /><input v-model="search" :placeholder="t('search')" /></div>
-            <button class="primary-btn" @click="openMeal()"><Plus :size="17" />{{ t('addMeal') }}</button>
+            <div class="search-box meals-search-box"><Search :size="17" /><input v-model="search" :placeholder="'Search meals…'" /></div>
+            <button class="primary-btn" @click="openMeal()"><Plus :size="17" />{{ 'Add meal' }}</button>
           </div>
         </div>
         <div v-if="sortedMeals.length" class="meals-list">
@@ -923,7 +918,7 @@ function ingredientKeyFor(name: string): string {
             <div class="meal-row-main">
               <h3 class="meal-title">
                 {{ meal.name }}
-                <span v-if="mealHasNutrition(meal)" class="meal-nutrition-indicator" :title="t('nutritionValuesPresent')" :aria-label="t('nutritionValuesPresent')" role="img">
+                <span v-if="mealHasNutrition(meal)" class="meal-nutrition-indicator" :title="'Nutrition values are present.'" :aria-label="'Nutrition values are present.'" role="img">
                   <Check :size="15" />
                 </span>
               </h3>
@@ -936,40 +931,40 @@ function ingredientKeyFor(name: string): string {
             <div class="meal-controls">
               <div class="frequency">
                 <label class="meal-variable-toggle">
-                  <input v-model="meal.variable" type="checkbox" :aria-label="t('variableMeal')" @change="updateMealVariable(meal)" />
+                  <input v-model="meal.variable" type="checkbox" :aria-label="'Variable'" @change="updateMealVariable(meal)" />
                   <span class="meal-variable-switch" aria-hidden="true"><span></span></span>
-                  <span>{{ t('variableMeal') }}</span>
+                  <span>{{ 'Variable' }}</span>
                 </label>
                 <div class="frequency-metric">
-                  <div class="frequency-label">{{ t('thisWeek') }}</div>
+                  <div class="frequency-label">{{ 'This week' }}</div>
                   <strong :class="frequencyTone(thisWeekFrequencyFor(meal.id))">{{ thisWeekFrequencyFor(meal.id) }}</strong>
                 </div>
                 <div class="frequency-metric">
-                  <div class="frequency-label">{{ t('averagePerWeek') }}</div>
+                  <div class="frequency-label">{{ 'Average per week' }}</div>
                   <strong :class="frequencyTone(averageFrequencyFor(meal.id))">{{ averageFrequencyFor(meal.id) }}</strong>
                 </div>
               </div>
               <div class="row-actions">
-                <button type="button" class="icon-btn meal-action-btn meal-action-view" :title="t('viewMeal')" :aria-label="t('viewMeal')" @click="viewMeal(meal)"><Eye /></button>
-                <button type="button" class="icon-btn meal-action-btn meal-action-edit" :title="t('editMeal')" :aria-label="t('editMeal')" @click="openMeal(meal)"><Pencil /></button>
-                <button type="button" class="icon-btn meal-action-btn meal-action-delete" :title="t('delete')" :aria-label="t('delete')" @click="removeMeal(meal)"><Trash2 /></button>
+                <button type="button" class="icon-btn meal-action-btn meal-action-view" :title="'View meal'" :aria-label="'View meal'" @click="viewMeal(meal)"><Eye /></button>
+                <button type="button" class="icon-btn meal-action-btn meal-action-edit" :title="'Edit meal'" :aria-label="'Edit meal'" @click="openMeal(meal)"><Pencil /></button>
+                <button type="button" class="icon-btn meal-action-btn meal-action-delete" :title="'Delete'" :aria-label="'Delete'" @click="removeMeal(meal)"><Trash2 /></button>
               </div>
             </div>
           </article>
         </div>
-        <div v-else class="empty-collection"><div class="state-icon"><ChefHat /></div><h3>{{ t('noMeals') }}</h3><button class="text-btn" @click="openMeal()">{{ t('addMeal') }} +</button></div>
+        <div v-else class="empty-collection"><div class="state-icon"><ChefHat /></div><h3>{{ 'No meals yet. Add your first dish.' }}</h3><button class="text-btn" @click="openMeal()">{{ 'Add meal' }} +</button></div>
       </section>
 
       <section v-else-if="activeTab === 'insights'" class="page insights-page">
         <div class="page-heading compact section-heading insights-heading">
           <div>
-            <h1>{{ t('insights') }}</h1>
-            <p class="insights-intro">{{ t('insightsIntro') }}</p>
+            <h1>{{ 'Insights' }}</h1>
+            <p class="insights-intro">{{ 'Nutrition totals for the week selected on Home. Ingredient quantities are required for calculations.' }}</p>
           </div>
           <span class="insights-week-label">{{ insightWeekRange }}</span>
         </div>
         <section class="insights-section">
-          <div class="insights-section-heading"><h2>{{ t('weekNutrition') }}</h2><span>{{ t('selectedWeek') }}</span></div>
+          <div class="insights-section-heading"><h2>{{ 'Weekly nutrition' }}</h2><span>{{ 'Selected Home week' }}</span></div>
           <div class="insights-summary-grid">
             <article v-for="metric in nutrientMetrics" :key="metric.key" class="insight-metric-card">
               <span>{{ metric.label }}</span>
@@ -979,16 +974,16 @@ function ingredientKeyFor(name: string): string {
           </div>
         </section>
         <section class="insights-section">
-          <div class="insights-section-heading"><h2>{{ t('dailyMeals') }}</h2><span>{{ t('dailyMealsHint') }}</span></div>
+          <div class="insights-section-heading"><h2>{{ 'Daily and meal breakdown' }}</h2><span>{{ 'Values are calculated from the quantities saved in each recipe.' }}</span></div>
           <div class="insights-days">
             <article v-for="day in insightDays" :key="day.key" class="insight-day-card">
               <header class="insight-day-heading">
-                <div><span>{{ new Intl.DateTimeFormat(locale === 'it' ? 'it-IT' : 'en-US', { weekday: 'long' }).format(day.date) }}</span><h3>{{ monthDay(day.date) }}</h3></div>
+                <div><span>{{ new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(day.date) }}</span><h3>{{ monthDay(day.date) }}</h3></div>
                 <strong>{{ formatNutritionValue(day.nutrition.calories.value, 'kcal') }}</strong>
               </header>
               <div v-if="day.meals.length" class="insight-day-meals">
                 <article v-for="meal in day.meals" :key="meal.type" class="insight-meal-row">
-                  <div class="insight-meal-title"><span>{{ t(meal.type) }}</span><strong>{{ meal.name }}</strong></div>
+                  <div class="insight-meal-title"><span>{{ mealTypeLabels[meal.type] }}</span><strong>{{ meal.name }}</strong></div>
                   <div class="insight-nutrient-values">
                     <span v-for="metric in nutrientMetrics" :key="metric.key">
                       <small>{{ metric.shortLabel }}</small>
@@ -998,12 +993,12 @@ function ingredientKeyFor(name: string): string {
                   </div>
                 </article>
               </div>
-              <p v-else class="insight-empty-day">{{ t('noMealsPlanned') }}</p>
+              <p v-else class="insight-empty-day">{{ 'No meals planned for this day.' }}</p>
             </article>
           </div>
         </section>
         <section class="insights-section">
-          <div class="insights-section-heading"><h2>{{ t('dishNutrition') }}</h2><span>{{ t('dishNutritionHint') }}</span></div>
+          <div class="insights-section-heading"><h2>{{ 'Nutrition by dish' }}</h2><span>{{ 'Recipe totals based on the ingredients and quantities saved in Meals.' }}</span></div>
           <div v-if="dishNutrition.length" class="insights-dish-grid">
             <article v-for="dish in dishNutrition" :key="dish.id" class="insight-dish-card">
               <h3>{{ dish.name }}</h3>
@@ -1016,31 +1011,31 @@ function ingredientKeyFor(name: string): string {
               </div>
             </article>
           </div>
-          <div v-else class="empty-collection"><ChefHat :size="28" /><h3>{{ t('noMeals') }}</h3></div>
+          <div v-else class="empty-collection"><ChefHat :size="28" /><h3>{{ 'No meals yet. Add your first dish.' }}</h3></div>
         </section>
-        <p class="insights-footnote">{{ t('nutritionCalculationNote') }}</p>
+        <p class="insights-footnote">{{ 'Totals include only ingredients with a quantity, a matching nutrition basis and the relevant nutrient value. Missing values are not treated as zero.' }}</p>
       </section>
       <section v-else class="page shopping-page">
         <div class="page-heading compact section-heading shopping-page-heading">
-          <h1>{{ t('shopping') }}</h1>
+          <h1>{{ 'Shopping' }}</h1>
           <div class="shopping-heading-actions">
             <label class="shopping-filter-toggle">
               <input v-model="excludeAlreadyAtHome" type="checkbox" />
               <span class="shopping-filter-switch" aria-hidden="true"><span></span></span>
-              <span class="shopping-filter-label">{{ t('excludeAlreadyAtHome') }}</span>
+              <span class="shopping-filter-label">{{ 'Exclude already at home' }}</span>
             </label>
             <div class="custom-select-wrap shopping-week-selector" @click.stop>
               <button class="custom-select-trigger" :aria-expanded="openPickerKey === 'shopping-week'" @click="togglePicker('shopping-week', $event)">
-                <span>{{ shoppingWeekSelection === 'this' ? t('thisWeek') : t('next') }}</span><ChevronRight class="select-chevron" :size="15" />
+                <span>{{ shoppingWeekSelection === 'this' ? 'This week' : 'Next week' }}</span><ChevronRight class="select-chevron" :size="15" />
               </button>
               <Teleport to="body">
                 <div v-if="openPickerKey === 'shopping-week'" class="custom-select-menu dropdown-menu-portal" :style="dropdownStyle" @click.stop>
-                  <button class="custom-select-option" :class="{ selected: shoppingWeekSelection === 'this' }" @click="selectShoppingWeek('this')">{{ t('thisWeek') }}</button>
-                  <button class="custom-select-option" :class="{ selected: shoppingWeekSelection === 'next' }" @click="selectShoppingWeek('next')">{{ t('next') }}</button>
+                  <button class="custom-select-option" :class="{ selected: shoppingWeekSelection === 'this' }" @click="selectShoppingWeek('this')">{{ 'This week' }}</button>
+                  <button class="custom-select-option" :class="{ selected: shoppingWeekSelection === 'next' }" @click="selectShoppingWeek('next')">{{ 'Next week' }}</button>
                 </div>
               </Teleport>
             </div>
-            <button class="secondary-btn store-priority-trigger" @click="openStorePriorityModal"><SlidersHorizontal :size="16" />{{ t('storePriorities') }}</button>
+            <button class="secondary-btn store-priority-trigger" @click="openStorePriorityModal"><SlidersHorizontal :size="16" />{{ 'Store priorities' }}</button>
           </div>
         </div>
         <div v-if="visibleShoppingGroups.length" class="shopping-groups">
@@ -1049,17 +1044,17 @@ function ingredientKeyFor(name: string): string {
             <article v-for="item in group.items" :key="item.key" class="shopping-item-row">
               <div class="shopping-item-info"><h3>{{ item.name }}</h3><p><span v-if="item.quantity">{{ quantityLabel(item.quantity, item.quantityUnit) }}</span><span v-if="!item.quantity && item.occurrences > 1">{{ item.occurrences }}×</span></p></div>
               <div class="shopping-status-control" role="group" :aria-label="item.name">
-                <button :class="{ selected: item.status === 'home' }" @click="setShoppingStatus(item.key, 'home')"><House :size="14" /><span>{{ t('alreadyAtHome') }}</span></button>
-                <button :class="{ selected: item.status === 'bought' }" @click="setShoppingStatus(item.key, 'bought')"><Check :size="14" /><span>{{ t('bought') }}</span></button>
-                <button :class="{ selected: item.status === 'buy' }" @click="setShoppingStatus(item.key, 'buy')"><ShoppingCart :size="14" /><span>{{ t('toBuy') }}</span></button>
+                <button :class="{ selected: item.status === 'home' }" @click="setShoppingStatus(item.key, 'home')"><House :size="14" /><span>{{ 'Already at home' }}</span></button>
+                <button :class="{ selected: item.status === 'bought' }" @click="setShoppingStatus(item.key, 'bought')"><Check :size="14" /><span>{{ 'Bought' }}</span></button>
+                <button :class="{ selected: item.status === 'buy' }" @click="setShoppingStatus(item.key, 'buy')"><ShoppingCart :size="14" /><span>{{ 'To buy' }}</span></button>
               </div>
             </article>
           </section>
         </div>
         <div v-else class="empty-collection">
           <ShoppingBasket :size="30" />
-          <h3>{{ shoppingItems.length && excludeAlreadyAtHome ? t('shoppingAllAtHome') : t('shoppingEmpty') }}</h3>
-          <p class="muted">{{ shoppingItems.length && excludeAlreadyAtHome ? t('shoppingAllAtHomeHint') : t('shoppingEmptyHint') }}</p>
+          <h3>{{ shoppingItems.length && excludeAlreadyAtHome ? 'Everything is already at home' : 'Nothing to buy yet' }}</h3>
+          <p class="muted">{{ shoppingItems.length && excludeAlreadyAtHome ? 'Turn off the filter to see all planned ingredients.' : 'Add ingredients to meals and schedule them this week.' }}</p>
         </div>
       </section>
     </main>
@@ -1067,42 +1062,42 @@ function ingredientKeyFor(name: string): string {
     <div v-if="storePriorityModal" class="modal-backdrop" @click.self="storePriorityModal = false">
       <section class="meal-modal store-priority-modal">
         <div class="modal-header">
-          <div><p class="eyebrow">{{ t('shopping') }}</p><h2>{{ t('storePriorities') }}</h2><p class="modal-description">{{ t('storePrioritiesHint') }}</p></div>
-          <button class="icon-btn" :aria-label="t('close')" @click="storePriorityModal = false"><X /></button>
+          <div><p class="eyebrow">{{ 'Shopping' }}</p><h2>{{ 'Store priorities' }}</h2><p class="modal-description">{{ 'Set one global order for your shops. Items available in multiple shops will be assigned to the highest-priority shop available.' }}</p></div>
+          <button class="icon-btn" :aria-label="'Close'" @click="storePriorityModal = false"><X /></button>
         </div>
         <div v-if="priorityModalStores.length" class="store-priority-list">
-          <p class="priority-order-hint">{{ t('storePriorityOrderHint') }}</p>
+          <p class="priority-order-hint">{{ 'Move shops up or down. Shops higher in the list are preferred whenever an ingredient is available in more than one place.' }}</p>
           <article v-for="(store, index) in priorityModalStores" :key="store.id" class="store-priority-row">
             <span class="priority-position">{{ String(index + 1).padStart(2, '0') }}</span>
             <div class="store-priority-item-info">
               <h3>{{ store.name }}</h3>
-              <p>{{ index === 0 ? t('highestPriority') : t('priorityNumber', { number: index + 1 }) }}</p>
+              <p>{{ index === 0 ? 'First choice' : `Priority #${index + 1}` }}</p>
             </div>
             <div class="priority-reorder-actions">
-              <button type="button" class="icon-btn priority-move-btn" :disabled="index === 0" :aria-label="t('moveStoreUp')" :title="t('moveStoreUp')" @click="moveStorePriority(index, -1)"><ChevronUp :size="16" /></button>
-              <button type="button" class="icon-btn priority-move-btn" :disabled="index === priorityModalStores.length - 1" :aria-label="t('moveStoreDown')" :title="t('moveStoreDown')" @click="moveStorePriority(index, 1)"><ChevronDown :size="16" /></button>
+              <button type="button" class="icon-btn priority-move-btn" :disabled="index === 0" :aria-label="'Move shop up'" :title="'Move shop up'" @click="moveStorePriority(index, -1)"><ChevronUp :size="16" /></button>
+              <button type="button" class="icon-btn priority-move-btn" :disabled="index === priorityModalStores.length - 1" :aria-label="'Move shop down'" :title="'Move shop down'" @click="moveStorePriority(index, 1)"><ChevronDown :size="16" /></button>
             </div>
           </article>
         </div>
         <div v-else class="empty-priority-state">
           <StoreIcon :size="26" />
-          <h3>{{ t('noStores') }}</h3>
-          <p>{{ t('storesHint') }}</p>
+          <h3>{{ 'No shops yet. Add the places where you shop.' }}</h3>
+          <p>{{ 'Add shops from the ingredient editor. Their global priority can be set here.' }}</p>
         </div>
         <div class="modal-actions">
-          <button type="button" class="secondary-btn" @click="storePriorityModal = false">{{ t('cancel') }}</button>
-          <button type="button" class="primary-btn" :disabled="!priorityModalStores.length" @click="saveStorePriority">{{ t('save') }}</button>
+          <button type="button" class="secondary-btn" @click="storePriorityModal = false">{{ 'Cancel' }}</button>
+          <button type="button" class="primary-btn" :disabled="!priorityModalStores.length" @click="saveStorePriority">{{ 'Save' }}</button>
         </div>
       </section>
     </div>
 
     <div v-if="modal" class="modal-backdrop" @click.self="modal = false">
       <section class="meal-modal" :class="{ 'meal-view-modal': viewing }">
-        <div class="modal-header"><div><p class="eyebrow">MEAL LIBRARY</p><h2>{{ viewing ? form.name : (editing ? t('editMeal') : t('addMeal')) }}</h2></div><button class="icon-btn" :aria-label="t('close')" @click="modal = false"><X /></button></div>
+        <div class="modal-header"><div><p class="eyebrow">MEAL LIBRARY</p><h2>{{ viewing ? form.name : (editing ? 'Edit meal' : 'Add meal') }}</h2></div><button class="icon-btn" :aria-label="'Close'" @click="modal = false"><X /></button></div>
         <form @submit.prevent="saveMeal">
           <div v-if="viewing" class="meal-view-content">
-            <div class="ingredients-editor-heading meal-view-section-heading"><h3>{{ t('ingredients') }}</h3></div>
-            <p v-if="!form.ingredients.length" class="empty-form-hint">{{ t('ingredientsEmpty') }}</p>
+            <div class="ingredients-editor-heading meal-view-section-heading"><h3>{{ 'Ingredients' }}</h3></div>
+            <p v-if="!form.ingredients.length" class="empty-form-hint">{{ 'No ingredients added yet.' }}</p>
             <article
               v-for="ingredient in form.ingredients"
               :key="ingredient.localId"
@@ -1114,48 +1109,48 @@ function ingredientKeyFor(name: string): string {
                 <span v-if="ingredient.quantity" class="meal-view-quantity">{{ quantityLabel(ingredient.quantity, ingredient.quantityUnit) }}</span>
               </div>
               <div class="meal-view-nutrition">
-                <div class="meal-view-nutrition-basis">{{ t('nutrition') }} · {{ t('nutritionPer') }} {{ ingredient.nutritionBasis === 'unit' ? t('perUnit') : t('per100g') }}</div>
+                <div class="meal-view-nutrition-basis">{{ 'Nutrition' }} · {{ 'Values' }} {{ ingredient.nutritionBasis === 'unit' ? 'unit' : '100 g' }}</div>
                 <div v-if="ingredientHasNutrition(ingredient)" class="meal-view-nutrition-values">
                   <span v-for="metric in nutrientMetrics" :key="metric.key">
                     <small>{{ metric.shortLabel }}</small>
                     <strong>{{ formatNutritionValue(ingredient.nutrition?.[metric.key] ?? null, metric.unit) }}</strong>
                   </span>
                 </div>
-                <p v-else class="meal-view-no-nutrition">{{ t('nutritionMissing') }}</p>
+                <p v-else class="meal-view-no-nutrition">{{ 'Not enough data' }}</p>
               </div>
             </article>
           </div>
           <fieldset v-else class="meal-editor-fieldset">
-          <label class="form-field">{{ t('mealName') }}<input v-model="form.name" required maxlength="90" autofocus /></label>
+          <label class="form-field">{{ 'Meal name' }}<input v-model="form.name" required maxlength="90" autofocus /></label>
           <div class="ingredients-editor">
-            <div class="ingredients-editor-heading"><h3>{{ t('ingredients') }}</h3><button v-if="!viewing" type="button" class="secondary-btn small-btn" @click="addIngredient"><Plus :size="15" />{{ t('addIngredient') }}</button></div>
-            <p v-if="!form.ingredients.length" class="empty-form-hint">{{ t('ingredientsEmpty') }}</p>
+            <div class="ingredients-editor-heading"><h3>{{ 'Ingredients' }}</h3><button v-if="!viewing" type="button" class="secondary-btn small-btn" @click="addIngredient"><Plus :size="15" />{{ 'Add ingredient' }}</button></div>
+            <p v-if="!form.ingredients.length" class="empty-form-hint">{{ 'No ingredients added yet.' }}</p>
             <div v-for="ingredient in form.ingredients" :key="ingredient.localId" class="ingredient-editor-row">
               <div class="ingredient-editor-fields">
-                <label class="form-field ingredient-name-field">{{ t('ingredientName') }}<input v-model="ingredient.name" required :placeholder="t('ingredientName')" /></label>
+                <label class="form-field ingredient-name-field">{{ 'Ingredient' }}<input v-model="ingredient.name" required :placeholder="'Ingredient'" /></label>
                 <div class="form-field ingredient-quantity-field">
-                  <span>{{ t('quantity') }}</span>
+                  <span>{{ 'Quantity' }}</span>
                   <span class="quantity-input-wrap" @click.stop>
-                    <input :value="ingredient.quantity" :aria-label="t('quantity')" type="number" min="0" :step="ingredient.quantityUnit === 'unit' ? 1 : 'any'" :inputmode="ingredient.quantityUnit === 'unit' ? 'numeric' : 'decimal'" :placeholder="ingredient.quantityUnit === 'unit' ? '1' : '200'" @input="ingredient.quantity = ($event.target as HTMLInputElement).value" />
+                    <input :value="ingredient.quantity" :aria-label="'Quantity'" type="number" min="0" :step="ingredient.quantityUnit === 'unit' ? 1 : 'any'" :inputmode="ingredient.quantityUnit === 'unit' ? 'numeric' : 'decimal'" :placeholder="ingredient.quantityUnit === 'unit' ? '1' : '200'" @input="ingredient.quantity = ($event.target as HTMLInputElement).value" />
                     <button type="button" class="quantity-unit quantity-unit-select" :aria-expanded="openPickerKey === `quantity-${ingredient.localId}`" @click="togglePicker(`quantity-${ingredient.localId}`, $event)">{{ quantityUnitShort(ingredient.quantityUnit) }}<ChevronRight :size=12 /></button>
                     <Teleport to="body">
                       <div v-if="openPickerKey === `quantity-${ingredient.localId}`" class="quantity-unit-menu dropdown-menu-portal" :style="dropdownStyle" @click.stop>
-                        <button type="button" class="quantity-unit-option" :class="{ selected: ingredient.quantityUnit === 'g' }" @click="pickQuantityUnit(ingredient, 'g')"><span class="quantity-option-symbol">g</span><span class="quantity-option-label">{{ t('quantityUnitGrams') }}</span><Check v-if="ingredient.quantityUnit === 'g'" :size="14" /></button>
-                        <button type="button" class="quantity-unit-option" :class="{ selected: ingredient.quantityUnit === 'unit' }" @click="pickQuantityUnit(ingredient, 'unit')"><span class="quantity-option-symbol">{{ quantityUnitShort('unit') }}</span><span class="quantity-option-label">{{ t('quantityUnitPieces') }}</span><Check v-if="ingredient.quantityUnit === 'unit'" :size="14" /></button>
+                        <button type="button" class="quantity-unit-option" :class="{ selected: ingredient.quantityUnit === 'g' }" @click="pickQuantityUnit(ingredient, 'g')"><span class="quantity-option-symbol">g</span><span class="quantity-option-label">{{ 'Grams (g)' }}</span><Check v-if="ingredient.quantityUnit === 'g'" :size="14" /></button>
+                        <button type="button" class="quantity-unit-option" :class="{ selected: ingredient.quantityUnit === 'unit' }" @click="pickQuantityUnit(ingredient, 'unit')"><span class="quantity-option-symbol">{{ quantityUnitShort('unit') }}</span><span class="quantity-option-label">{{ 'Units' }}</span><Check v-if="ingredient.quantityUnit === 'unit'" :size="14" /></button>
                       </div>
                     </Teleport>
                   </span>
                 </div>
               </div>
               <div class="store-picker-line">
-                <span class="field-caption">{{ t('store') }}</span>
+                <span class="field-caption">{{ 'Stores' }}</span>
                 <div class="custom-select-wrap store-select-wrap" @click.stop>
                   <button type="button" class="custom-select-trigger" :aria-expanded="openPickerKey === `store-${ingredient.localId}`" @click="togglePicker(`store-${ingredient.localId}`, $event)">
                     <span>{{ storeSelectionLabel(ingredient.storeIds) }}</span><ChevronRight class="select-chevron" :size="15" />
                   </button>
                   <Teleport to="body">
                     <div v-if="openPickerKey === `store-${ingredient.localId}`" class="custom-select-menu store-select-menu dropdown-menu-portal" :style="dropdownStyle" @click.stop>
-                      <button type="button" class="custom-select-option" :class="{ selected: !ingredient.storeIds.length }" @click="pickStore(ingredient, '')">{{ t('noStore') }}<Check v-if="!ingredient.storeIds.length" :size="14" /></button>
+                      <button type="button" class="custom-select-option" :class="{ selected: !ingredient.storeIds.length }" @click="pickStore(ingredient, '')">{{ 'No store' }}<Check v-if="!ingredient.storeIds.length" :size="14" /></button>
                       <button v-for="store in stores" :key="store.id" type="button" class="custom-select-option multi-select-option" :class="{ selected: ingredient.storeIds.includes(store.id) }" @click="pickStore(ingredient, store.id)">{{ store.name }}<Check v-if="ingredient.storeIds.includes(store.id)" :size="14" /></button>
                     </div>
                   </Teleport>
@@ -1167,42 +1162,42 @@ function ingredientKeyFor(name: string): string {
                   :class="{ active: addingStoreFor === ingredient.localId }"
                   :aria-expanded="addingStoreFor === ingredient.localId"
                   :aria-controls="`new-store-${ingredient.localId}`"
-                  :aria-label="addingStoreFor === ingredient.localId ? t('close') : t('addStore')"
+                  :aria-label="addingStoreFor === ingredient.localId ? 'Close' : 'Add shop'"
                   @click="addingStoreFor = addingStoreFor === ingredient.localId ? null : ingredient.localId"
                 >
                   <X v-if="addingStoreFor === ingredient.localId" :size="14" />
                   <Plus v-else :size="14" />
-                  <span>{{ t('addStore') }}</span>
+                  <span>{{ 'Add shop' }}</span>
                 </button>
-                <button v-if="!viewing" type="button" class="icon-btn remove-ingredient" :title="t('remove')" @click="removeIngredient(ingredient.localId)"><Trash2 :size="15" /></button>
+                <button v-if="!viewing" type="button" class="icon-btn remove-ingredient" :title="'Remove'" @click="removeIngredient(ingredient.localId)"><Trash2 :size="15" /></button>
               </div>
-              <div v-if="!viewing && addingStoreFor === ingredient.localId" :id="`new-store-${ingredient.localId}`" class="new-store-form" role="region" :aria-label="t('addStore')">
-                <input v-model="newStoreName" :placeholder="t('newStore')" maxlength="60" @keydown.enter.prevent="addStore(ingredient.localId)" />
-                <button class="primary-btn small-btn" type="button" :disabled="!newStoreName.trim()" @click="addStore(ingredient.localId)">{{ t('saveStore') }}</button>
+              <div v-if="!viewing && addingStoreFor === ingredient.localId" :id="`new-store-${ingredient.localId}`" class="new-store-form" role="region" :aria-label="'Add shop'">
+                <input v-model="newStoreName" :placeholder="'New shop name'" maxlength="60" @keydown.enter.prevent="addStore(ingredient.localId)" />
+                <button class="primary-btn small-btn" type="button" :disabled="!newStoreName.trim()" @click="addStore(ingredient.localId)">{{ 'Save shop' }}</button>
               </div>
               <details class="ingredient-nutrition-editor" :class="ingredientHasNutrition(ingredient) ? 'has-nutrition' : 'missing-nutrition'">
-                <summary><span>{{ t('nutrition') }}</span><small>{{ t('nutritionPer') }} {{ ingredient.nutritionBasis === 'unit' ? t('perUnit') : t('per100g') }}</small></summary>
+                <summary><span>{{ 'Nutrition' }}</span><small>{{ 'Values' }} {{ ingredient.nutritionBasis === 'unit' ? 'unit' : '100 g' }}</small></summary>
                 <div class="nutrition-editor-content">
                   <div class="nutrition-basis-row">
-                    <label :for="'nutrition-basis-' + ingredient.localId">{{ t('nutritionBasis') }}</label>
+                    <label :for="'nutrition-basis-' + ingredient.localId">{{ 'Values per' }}</label>
                     <select :id="'nutrition-basis-' + ingredient.localId" :value="ingredient.nutritionBasis || '100g'" @change="changeIngredientNutritionBasis(ingredient, $event)">
-                      <option value="100g">{{ t('per100g') }}</option><option value="unit">{{ t('perUnit') }}</option>
+                      <option value="100g">{{ '100 g' }}</option><option value="unit">{{ 'unit' }}</option>
                     </select>
                   </div>
-                  <p v-if="(ingredient.nutritionBasis === '100g' && ingredient.quantityUnit === 'unit') || (ingredient.nutritionBasis === 'unit' && ingredient.quantityUnit === 'g')" class="nutrition-unit-warning">{{ t('nutritionUnitMismatch') }}</p>
+                  <p v-if="(ingredient.nutritionBasis === '100g' && ingredient.quantityUnit === 'unit') || (ingredient.nutritionBasis === 'unit' && ingredient.quantityUnit === 'g')" class="nutrition-unit-warning">{{ 'The quantity unit and nutrition basis do not match, so this ingredient is excluded from totals.' }}</p>
                   <div class="nutrition-input-grid">
                     <label v-for="metric in nutrientMetrics" :key="metric.key">
                       <span>{{ metric.label }} <small>({{ metric.unit }})</small></span>
                       <input type="number" min="0" step="any" :value="ingredient.nutrition?.[metric.key] ?? ''" @input="setIngredientNutrition(ingredient, metric.key, $event)" />
                     </label>
                   </div>
-                  <p class="nutrition-editor-hint">{{ t('nutritionEntryHint') }} {{ t('nutritionBasisChangeHint') }}</p>
+                  <p class="nutrition-editor-hint">{{ 'Enter values per 100 g or per unit.' }} {{ 'Changing the basis clears the entered values so they are not misinterpreted.' }}</p>
                 </div>
               </details>
             </div>
           </div>
           </fieldset>
-          <div v-if="!viewing" class="modal-actions"><button type="button" class="secondary-btn" @click="modal = false">{{ t('cancel') }}</button><button class="primary-btn" type="submit">{{ t('save') }}</button></div>
+          <div v-if="!viewing" class="modal-actions"><button type="button" class="secondary-btn" @click="modal = false">{{ 'Cancel' }}</button><button class="primary-btn" type="submit">{{ 'Save' }}</button></div>
         </form>
       </section>
     </div>
