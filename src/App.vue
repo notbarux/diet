@@ -96,6 +96,25 @@ const selectedDate = ref(new Date(planDefaultDate < planStartDate ? planStartDat
 const shoppingWeekSelection = ref<'this' | 'next'>(today.getDay() === 0 || today.getDay() === 6 ? 'next' : 'this')
 const excludeAlreadyAtHome = ref(true)
 const currentKey = computed(() => dateKey(selectedDate.value))
+
+watch(
+  () => [activeTab.value, mobilePlanView.value, access.value, checking.value, dateKey(selectedDate.value)] as const,
+  async () => {
+    await nextTick()
+    if (window.matchMedia('(max-width: 650px)').matches &&
+      activeTab.value === 'home' &&
+      mobilePlanView.value === 'inline' &&
+      access.value &&
+      !checking.value) {
+      document.querySelector<HTMLElement>(`[data-day-key="${todayKey}"]`)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+        inline: 'nearest',
+      })
+    }
+  },
+  { flush: 'post' },
+)
 const dateFromKey = (key: string) => {
   const [year, month, day] = key.split('-').map(Number)
   return new Date(year, month - 1, day)
