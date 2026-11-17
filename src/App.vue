@@ -19,7 +19,7 @@ import type {
 import { emptyNutrition, normalizeNutrition, summarizeNutrition } from './lib/nutrition'
 import {
   ChefHat, Utensils, Plus, ChevronLeft, ChevronRight, Sun, Moon,
-  Languages, LogOut, X, Trash2, Pencil, Sparkles, ShoppingBasket,
+  Languages, Search, LogOut, X, Trash2, Pencil, Sparkles, ShoppingBasket,
   Check, Store as StoreIcon, House, ShoppingCart, SlidersHorizontal, ChartPie,
   ChevronUp, ChevronDown, Eye,
 } from '@lucide/vue'
@@ -35,6 +35,7 @@ const stores = ref<Store[]>([])
 const plans = ref<Record<string, DayPlan>>({})
 const activeTab = ref<'home' | 'meals' | 'shopping' | 'insights'>('home')
 const theme = ref<'dark' | 'light'>((localStorage.getItem('diet-theme') as 'dark' | 'light') || 'dark')
+const search = ref('')
 const excludeVariableMeals = ref(true)
 const storedMobilePlanView = localStorage.getItem('diet-mobile-plan-view')
 const mobilePlanView = ref<'inline' | 'table'>(storedMobilePlanView === 'table' ? 'table' : 'inline')
@@ -115,6 +116,7 @@ const monthDay = (date: Date) => new Intl.DateTimeFormat(locale.value === 'it' ?
 }).format(date)
 const sortedMeals = computed(() => meals.value
   .filter(meal => !excludeVariableMeals.value || !meal.variable)
+  .filter(meal => meal.name.toLowerCase().includes(search.value.toLowerCase()))
   .sort((a, b) => a.name.localeCompare(b.name)))
 const weekDays = computed(() => {
   const monday = startOfWeek(selectedDate.value)
@@ -857,11 +859,15 @@ function ingredientKeyFor(name: string): string {
           </div>
         </div>
         <div class="mobile-plan-view-toolbar" role="group" :aria-label="t('weekView')">
-          <button type="button" :class="{ active: mobilePlanView === 'inline' }" :aria-pressed="mobilePlanView === 'inline'" @click="mobilePlanView = 'inline'">{{ t('inlineView') }}</button>
-          <button type="button" :class="{ active: mobilePlanView === 'table' }" :aria-pressed="mobilePlanView === 'table'" @click="mobilePlanView = 'table'">{{ t('tableView') }}</button>
+          <button type="button" class="mobile-plan-view-button" :class="{ active: mobilePlanView === 'inline' }" :aria-pressed="mobilePlanView === 'inline'" :title="t('inlineView')" :aria-label="t('inlineView')" @click="mobilePlanView = 'inline'"><List :size="16" /></button>
+          <button type="button" class="mobile-plan-view-button" :class="{ active: mobilePlanView === 'table' }" :aria-pressed="mobilePlanView === 'table'" :title="t('tableView')" :aria-label="t('tableView')" @click="mobilePlanView = 'table'"><Table2 :size="16" /></button>
         </div>
 
         <div class="plan-day-list" :class="{ 'plan-day-list-table': mobilePlanView === 'table' }">
+          <div v-if="mobilePlanView === 'table'" class="plan-table-header">
+            <span class="plan-table-day-label">{{ t('day') }}</span>
+            <span v-for="type in mealTypes" :key="type">{{ t(type) }}</span>
+          </div>
           <article v-for="day in weekDays" :key="dateKey(day)" :data-day-key="dateKey(day)" class="plan-day-row" :class="{ 'plan-day-row-today': dateKey(day) === todayKey, 'plan-day-row-focused': dateKey(day) === currentKey }">
             <header class="plan-day-heading">
               <div>
@@ -908,6 +914,7 @@ function ingredientKeyFor(name: string): string {
               <span class="meals-filter-switch" aria-hidden="true"><span></span></span>
               <span>{{ t('excludeVariableMeals') }}</span>
             </label>
+            <div class="search-box meals-search-box"><Search :size="17" /><input v-model="search" :placeholder="t('search')" /></div>
             <button class="primary-btn" @click="openMeal()"><Plus :size="17" />{{ t('addMeal') }}</button>
           </div>
         </div>
@@ -927,22 +934,28 @@ function ingredientKeyFor(name: string): string {
                 </span>
               </div>
             </div>
-            <div class="frequency">
-              <label class="meal-variable-toggle">
-                <input v-model="meal.variable" type="checkbox" :aria-label="t('variableMeal')" @change="updateMealVariable(meal)" />
-                <span class="meal-variable-switch" aria-hidden="true"><span></span></span>
-                <span>{{ t('variableMeal') }}</span>
-              </label>
-              <div class="frequency-metric">
-                <div class="frequency-label">{{ t('thisWeek') }}</div>
-                <strong :class="frequencyTone(thisWeekFrequencyFor(meal.id))">{{ thisWeekFrequencyFor(meal.id) }}</strong>
+            <div class="meal-controls">
+              <div class="frequency">
+                <label class="meal-variable-toggle">
+                  <input v-model="meal.variable" type="checkbox" :aria-label="t('variableMeal')" @change="updateMealVariable(meal)" />
+                  <span class="meal-variable-switch" aria-hidden="true"><span></span></span>
+                  <span>{{ t('variableMeal') }}</span>
+                </label>
+                <div class="frequency-metric">
+                  <div class="frequency-label">{{ t('thisWeek') }}</div>
+                  <strong :class="frequencyTone(thisWeekFrequencyFor(meal.id))">{{ thisWeekFrequencyFor(meal.id) }}</strong>
+                </div>
+                <div class="frequency-metric">
+                  <div class="frequency-label">{{ t('averagePerWeek') }}</div>
+                  <strong :class="frequencyTone(averageFrequencyFor(meal.id))">{{ averageFrequencyFor(meal.id) }}</strong>
+                </div>
               </div>
-              <div class="frequency-metric">
-                <div class="frequency-label">{{ t('averagePerWeek') }}</div>
-                <strong :class="frequencyTone(averageFrequencyFor(meal.id))">{{ averageFrequencyFor(meal.id) }}</strong>
+              <div class="row-actions">
+                <button type="button" class="icon-btn meal-action-btn meal-action-view" :title="t('viewMeal')" :aria-label="t('viewMeal')" @click="viewMeal(meal)"><Eye /></button>
+                <button type="button" class="icon-btn meal-action-btn meal-action-edit" :title="t('editMeal')" :aria-label="t('editMeal')" @click="openMeal(meal)"><Pencil /></button>
+                <button type="button" class="icon-btn meal-action-btn meal-action-delete" :title="t('delete')" :aria-label="t('delete')" @click="removeMeal(meal)"><Trash2 /></button>
               </div>
             </div>
-            <div class="row-actions"><button class="icon-btn" :title="t('viewMeal')" :aria-label="t('viewMeal')" @click="viewMeal(meal)"><Eye /></button><button class="icon-btn" :title="t('editMeal')" @click="openMeal(meal)"><Pencil /></button><button class="icon-btn danger" :title="t('delete')" @click="removeMeal(meal)"><Trash2 /></button></div>
           </article>
         </div>
         <div v-else class="empty-collection"><div class="state-icon"><ChefHat /></div><h3>{{ t('noMeals') }}</h3><button class="text-btn" @click="openMeal()">{{ t('addMeal') }} +</button></div>
