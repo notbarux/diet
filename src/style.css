@@ -449,14 +449,21 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .plan-day-row { grid-template-columns: minmax(0, 1fr); }
   .plan-day-heading { min-height: 58px; padding: 10px 13px; border-right: 0; border-bottom: 1px solid var(--line); }
   .plan-day-heading h2 { font-size: 17px; }
-  .plan-day-meals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .plan-meal-slot { min-height: 82px; gap: 7px; padding: 10px 11px; border-left: 0; }
-  .plan-meal-slot:nth-child(even) { border-left: 1px solid var(--line); }
-  .plan-meal-slot:nth-child(n + 3) { border-top: 1px solid var(--line); }
+  .plan-day-meals { grid-template-columns: minmax(0, 1fr); }
+  .plan-meal-slot { min-height: 82px; gap: 7px; padding: 10px 11px; border-left: 0; border-top: 1px solid var(--line); }
+  .plan-meal-slot:first-child { border-top: 0; }
   .plan-meal-meta { align-items: baseline; }
   .day-meal-time { font-size: 10px; }
   .day-meal-type { font-size: 8px; }
   .day-meal-select .custom-select-trigger { min-height: 35px; font-size: 10px; }
+  .day-meal-view-btn { background: transparent; }
+  .day-meal-view-btn:hover:not(:disabled),
+  .day-meal-view-btn:active,
+  .day-meal-view-btn:focus:not(:focus-visible) {
+    background: transparent;
+    box-shadow: none;
+    outline: none;
+  }
   .day-meal-picker-actions { gap: 4px; }
   .day-meal-actions { gap: 4px; }
   .shopping-page-heading { align-items: center; flex-wrap: wrap; gap: 10px; }
