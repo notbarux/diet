@@ -19,7 +19,7 @@
  * pinia v2.3.1
  * (c) 2025 Eduardo San Martin Morote
  * @license MIT
- */const Kw=Symbol();var Ud;(function(t){t.direct="direct",t.patchObject="patch object",t.patchFunction="patch function"})(Ud||(Ud={}));function Gw(){const t=ky(!0),e=t.run(()=>Pe({}));let n=[],s=[];const r=em({install(i){r._a=i,i.provide(Kw,r),i.config.globalProperties.$pinia=r,s.forEach(o=>n.push(o)),s=[]},use(i){return this._a?n.push(i):s.push(i),this},_p:n,_a:null,_e:t,_s:new Map,state:e});return r}const Qw="1.6.25",Jw={version:Qw},Xw=()=>{};var $d={};/**
+ */const Kw=Symbol();var Ud;(function(t){t.direct="direct",t.patchObject="patch object",t.patchFunction="patch function"})(Ud||(Ud={}));function Gw(){const t=ky(!0),e=t.run(()=>Pe({}));let n=[],s=[];const r=em({install(i){r._a=i,i.provide(Kw,r),i.config.globalProperties.$pinia=r,s.forEach(o=>n.push(o)),s=[]},use(i){return this._a?n.push(i):s.push(i),this},_p:n,_a:null,_e:t,_s:new Map,state:e});return r}const Qw="1.6.26",Jw={version:Qw},Xw=()=>{};var $d={};/**
  * @license
  * Copyright 2017 Google LLC
  *
