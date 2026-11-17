@@ -36,7 +36,7 @@ const plans = ref<Record<string, DayPlan>>({})
 const activeTab = ref<'home' | 'meals' | 'shopping' | 'insights'>('home')
 const theme = ref<'dark' | 'light'>((localStorage.getItem('diet-theme') as 'dark' | 'light') || 'dark')
 const search = ref('')
-const filterVariableMeals = ref(true)
+const excludeVariableMeals = ref(true)
 const modal = ref(false)
 const editing = ref<Meal | null>(null)
 const viewing = ref(false)
@@ -113,7 +113,7 @@ const monthDay = (date: Date) => new Intl.DateTimeFormat(locale.value === 'it' ?
   day: 'numeric', month: 'short',
 }).format(date)
 const sortedMeals = computed(() => meals.value
-  .filter(meal => !filterVariableMeals.value || meal.variable)
+  .filter(meal => !excludeVariableMeals.value || !meal.variable)
   .filter(meal => meal.name.toLowerCase().includes(search.value.toLowerCase()))
   .sort((a, b) => a.name.localeCompare(b.name)))
 const weekDays = computed(() => {
@@ -898,9 +898,9 @@ function ingredientKeyFor(name: string): string {
           <h1>{{ t('meals') }}</h1>
           <div class="meals-heading-actions">
             <label class="meals-filter-toggle">
-              <input v-model="filterVariableMeals" type="checkbox" />
+              <input v-model="excludeVariableMeals" type="checkbox" />
               <span class="meals-filter-switch" aria-hidden="true"><span></span></span>
-              <span>{{ t('filterVariableMeals') }}</span>
+              <span>{{ t('excludeVariableMeals') }}</span>
             </label>
             <div class="search-box meals-search-box"><Search :size="17" /><input v-model="search" :placeholder="t('search')" /></div>
             <button class="primary-btn" @click="openMeal()"><Plus :size="17" />{{ t('addMeal') }}</button>
