@@ -221,7 +221,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .day-meal-actions .clear-meal-btn svg { width: 13px; height: 13px; }
 /* Shopping list is derived from the selected week's planned meals. */
 .shopping-page-heading { align-items: center; }
-.shopping-heading-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 9px; }
+.shopping-heading-actions { display: flex; flex-wrap: nowrap; align-items: center; justify-content: flex-end; gap: 9px; }
 .shopping-filter-toggle { display: inline-flex; align-items: center; gap: 7px; min-height: 40px; color: var(--muted); font-size: 10px; font-weight: 700; white-space: nowrap; cursor: pointer; user-select: none; }
 .shopping-filter-toggle input { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; }
 .shopping-filter-switch { position: relative; width: 32px; height: 18px; flex: 0 0 32px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel-soft); transition: border-color .16s ease, background .16s ease; }
@@ -230,9 +230,10 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .shopping-filter-toggle input:checked + .shopping-filter-switch > span { transform: translateX(14px); background: var(--accent-ink); }
 .shopping-filter-toggle input:focus-visible + .shopping-filter-switch { outline: 2px solid var(--accent); outline-offset: 3px; }
 .shopping-filter-toggle:has(input:checked) { color: var(--text); }
-.shopping-week-selector { width: 170px; flex: 0 0 auto; }
-.shopping-week-selector .custom-select-trigger { min-height: 40px; }
-.shopping-page-heading .store-priority-trigger { gap: 8px; }
+.shopping-week-selector { width: 113px; flex: 0 0 auto; }
+.shopping-week-selector .custom-select-trigger { min-height: 40px; gap: 5px; padding-right: 8px; padding-left: 9px; }
+.shopping-week-selector .custom-select-trigger > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shopping-page-heading .store-priority-trigger { width: 40px; min-width: 40px; min-height: 40px; justify-content: center; gap: 0; padding: 0; }
 .shopping-groups { display: grid; gap: 25px; }
 .shopping-store-group { max-width: none; overflow: visible; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
 .shopping-store-heading { min-height: 52px; display: flex; align-items: center; gap: 10px; padding: 0 17px; border-bottom: 1px solid var(--line); color: var(--accent); }
@@ -595,13 +596,13 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   }
   .day-meal-picker-actions { gap: 4px; }
   .day-meal-actions { gap: 4px; }
-  .shopping-page-heading { align-items: center; flex-wrap: wrap; gap: 10px; }
-  .shopping-heading-actions { gap: 6px; margin-left: auto; }
-  .shopping-filter-toggle { min-height: 36px; gap: 5px; font-size: 9px; }
-  .shopping-week-selector { width: min(155px, 39vw); }
-  .shopping-week-selector .custom-select-trigger { min-height: 36px; padding: 8px 9px; font-size: 10px; }
-  .shopping-page-heading .store-priority-trigger { min-height: 36px; padding: 8px 9px; font-size: 10px; }
-  .shopping-page-heading .store-priority-trigger > svg { width: 14px; height: 14px; }
+  .shopping-page-heading { align-items: center; flex-wrap: wrap; gap: 5px 10px; }
+  .shopping-heading-actions { width: 100%; min-width: 0; flex: 1 1 100%; flex-wrap: nowrap; justify-content: space-between; gap: 6px; margin-left: 0; }
+  .shopping-filter-toggle { min-width: 0; min-height: 36px; gap: 5px; font-size: 9px; }
+  .shopping-week-selector { width: min(103px, 26vw); flex: 0 0 auto; }
+  .shopping-week-selector .custom-select-trigger { min-height: 36px; gap: 4px; padding: 8px 7px; font-size: 10px; }
+  .shopping-page-heading .store-priority-trigger { width: 36px; min-width: 36px; min-height: 36px; padding: 0; }
+  .shopping-page-heading .store-priority-trigger > svg { width: 14px; height: 14px; flex: 0 0 auto; }
   .store-priority-row { grid-template-columns: 32px minmax(0, 1fr) auto; gap: 9px; padding: 10px; }
   .priority-position { width: 29px; height: 29px; }
   .priority-move-btn { width: 31px; height: 31px; }
@@ -648,6 +649,9 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .insight-nutrient-values strong { font-size: 9px; }
 }
 @media (max-width: 370px) {
+  .shopping-filter-toggle { gap: 4px; font-size: 8px; }
+  .shopping-heading-actions { gap: 5px; }
+  .shopping-week-selector .custom-select-trigger { padding-right: 6px; padding-left: 6px; }
   .app-topbar { padding-right: 7px; padding-left: 7px; }
   .top-brand { gap: 5px; font-size: 16px; }
   .brand-version { font-size: 7px; }

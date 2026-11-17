@@ -1255,7 +1255,7 @@ function ingredientKeyFor(name: string): string {
                 </div>
               </Teleport>
             </div>
-            <button class="secondary-btn store-priority-trigger" @click="openStorePriorityModal"><SlidersHorizontal :size="16" />{{ 'Store priorities' }}</button>
+            <button class="secondary-btn store-priority-trigger" type="button" title="Store priorities" aria-label="Store priorities" @click="openStorePriorityModal"><SlidersHorizontal :size="16" /></button>
           </div>
         </div>
         <div v-if="visibleShoppingGroups.length" class="shopping-groups">
