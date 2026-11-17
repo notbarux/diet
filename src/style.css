@@ -533,49 +533,33 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .plan-day-list-grid .plan-day-row {
     width: 100%;
     min-width: 0;
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
     clip-path: inset(0 round 13px);
   }
-  .plan-day-list-grid .plan-day-heading {
-    min-height: 58px;
-    flex: 0 0 auto;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    padding: 10px 13px;
-    border-right: 0;
-    border-bottom: 1px solid var(--line);
-    background: var(--panel);
-    text-align: left;
-  }
-  .plan-day-list-grid .plan-day-heading > div {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 6px 9px;
-  }
-  .plan-day-list-grid .plan-day-heading h2 { margin: 0; font-size: 17px; }
   .plan-day-list-grid .plan-day-meals {
     width: 100%;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: stretch;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .plan-day-list-grid .plan-meal-slot {
     min-width: 0;
-    min-height: 80px;
-    flex: 1 1 145px;
+    min-height: 82px;
     gap: 7px;
-    padding: 10px;
-    border-top: 1px solid var(--line);
+    padding: 10px 11px;
+    border-top: 0;
     border-left: 0;
   }
-  .plan-day-list-grid .plan-meal-meta { align-items: center; gap: 5px; }
-  .plan-day-list-grid .day-meal-type { display: block; font-size: 8px; }
-  .plan-day-list-grid .day-meal-time { font-size: 9px; }
-  .plan-day-list-grid .day-meal-picker-actions { gap: 4px; }
-  .plan-day-list-grid .day-meal-select .custom-select-trigger { min-height: 34px; padding: 6px 7px; font-size: 9px; }
+  .plan-day-list-grid .plan-meal-slot:nth-child(even) {
+    border-left: 1px solid var(--line);
+  }
+  .plan-day-list-grid .plan-meal-slot:nth-child(n + 3) {
+    border-top: 1px solid var(--line);
+  }
+  .plan-day-list-grid .plan-meal-meta { align-items: baseline; }
+  .plan-day-list-grid .day-meal-type { font-size: 8px; }
+  .plan-day-list-grid .day-meal-time { font-size: 10px; }
+  .plan-day-list-grid .day-meal-select .custom-select-trigger { min-height: 35px; font-size: 10px; }
   .plan-day-heading { min-height: 58px; padding: 10px 13px; border-right: 0; border-bottom: 1px solid var(--line); }
   .plan-day-heading h2 { font-size: 17px; }
   .plan-day-meals { grid-template-columns: minmax(0, 1fr); }
