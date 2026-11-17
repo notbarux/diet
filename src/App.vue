@@ -20,6 +20,7 @@ import { emptyNutrition, normalizeNutrition, summarizeNutrition } from './lib/nu
 import {
   ChefHat, Utensils, Plus, ChevronLeft, ChevronRight, Sun, Moon,
   Languages, Search, LogOut, X, Trash2, Pencil, Sparkles, ShoppingBasket,
+  List, Table2,
   Check, Store as StoreIcon, House, ShoppingCart, SlidersHorizontal, ChartPie,
   ChevronUp, ChevronDown, Eye,
 } from '@lucide/vue'
