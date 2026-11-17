@@ -42,6 +42,8 @@ export interface Meal {
   id: string
   name: string
   ingredients: MealIngredient[]
+  /** Whether this meal can be varied; legacy meals default to false. */
+  variable: boolean
   createdAt?: unknown
 }
 

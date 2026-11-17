@@ -36,6 +36,7 @@ const plans = ref<Record<string, DayPlan>>({})
 const activeTab = ref<'home' | 'meals' | 'shopping' | 'insights'>('home')
 const theme = ref<'dark' | 'light'>((localStorage.getItem('diet-theme') as 'dark' | 'light') || 'dark')
 const search = ref('')
+const filterVariableMeals = ref(true)
 const modal = ref(false)
 const editing = ref<Meal | null>(null)
 const openPickerKey = ref<string | null>(null)
@@ -110,6 +111,7 @@ const monthDay = (date: Date) => new Intl.DateTimeFormat(locale.value === 'it' ?
   day: 'numeric', month: 'short',
 }).format(date)
 const sortedMeals = computed(() => meals.value
+  .filter(meal => !filterVariableMeals.value || meal.variable)
   .filter(meal => meal.name.toLowerCase().includes(search.value.toLowerCase()))
   .sort((a, b) => a.name.localeCompare(b.name)))
 const weekDays = computed(() => {
@@ -277,6 +279,7 @@ function subscribe() {
         id: item.id,
         name: String(data.name || ''),
         ingredients: normalizedIngredients(data.ingredients),
+        variable: data.variable === true,
         createdAt: data.createdAt,
       }
     })
@@ -520,8 +523,9 @@ function openMeal(meal?: Meal) {
   editing.value = meal || null
   form.value = meal ? {
     name: meal.name,
+    variable: meal.variable,
     ingredients: normalizedIngredients(meal.ingredients).map(ingredient => ({ ...ingredient, localId: crypto.randomUUID() })),
-  } : { name: '', ingredients: [] }
+  } : { name: '', variable: false, ingredients: [] }
   addingStoreFor.value = null
   newStoreName.value = ''
   modal.value = true
@@ -540,6 +544,17 @@ function removeIngredient(localId: string) {
   form.value.ingredients = form.value.ingredients.filter(ingredient => ingredient.localId !== localId)
   if (addingStoreFor.value === localId) addingStoreFor.value = null
 }
+async function updateMealVariable(meal: Meal) {
+  if (!db) return
+  const previousValue = !meal.variable
+  try {
+    await updateDoc(doc(db, 'meals', meal.id), { variable: meal.variable })
+  } catch (error) {
+    meal.variable = previousValue
+    console.error('Unable to update meal variability:', error)
+  }
+}
+
 async function saveMeal() {
   if (!db || !form.value.name.trim()) return
   const ingredients = form.value.ingredients
@@ -558,6 +573,7 @@ async function saveMeal() {
   const payload = {
     name: form.value.name.trim(),
     ingredients,
+    variable: form.value.variable,
     updatedAt: serverTimestamp(),
   }
   if (editing.value) {
@@ -862,6 +878,11 @@ function ingredientKeyFor(name: string): string {
         <div class="page-heading compact section-heading meals-page-heading">
           <h1>{{ t('meals') }}</h1>
           <div class="meals-heading-actions">
+            <label class="meals-filter-toggle">
+              <input v-model="filterVariableMeals" type="checkbox" />
+              <span class="meals-filter-switch" aria-hidden="true"><span></span></span>
+              <span>{{ t('filterVariableMeals') }}</span>
+            </label>
             <div class="search-box meals-search-box"><Search :size="17" /><input v-model="search" :placeholder="t('search')" /></div>
             <button class="primary-btn" @click="openMeal()"><Plus :size="17" />{{ t('addMeal') }}</button>
           </div>
@@ -883,6 +904,11 @@ function ingredientKeyFor(name: string): string {
               </div>
             </div>
             <div class="frequency">
+              <label class="meal-variable-toggle">
+                <input v-model="meal.variable" type="checkbox" :aria-label="t('variableMeal')" @change="updateMealVariable(meal)" />
+                <span class="meal-variable-switch" aria-hidden="true"><span></span></span>
+                <span>{{ t('variableMeal') }}</span>
+              </label>
               <div class="frequency-metric">
                 <div class="frequency-label">{{ t('thisWeek') }}</div>
                 <strong :class="frequencyTone(thisWeekFrequencyFor(meal.id))">{{ thisWeekFrequencyFor(meal.id) }}</strong>
