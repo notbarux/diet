@@ -396,9 +396,10 @@ async function checkAccess(currentUser: User) {
   }
   try {
     const snapshot = await getDoc(doc(db, 'users', currentUser.uid))
-    access.value = snapshot.exists() && snapshot.data().enabled === true
-    if (access.value) {
-      loadNutritionProfile(snapshot.data().nutritionProfile)
+    const userData = snapshot.exists() ? snapshot.data() : undefined
+    access.value = userData?.enabled === true
+    if (userData && access.value) {
+      loadNutritionProfile(userData.nutritionProfile)
       subscribe()
     }
   } catch (error) {
