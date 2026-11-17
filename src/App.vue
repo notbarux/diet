@@ -38,8 +38,7 @@ const activeTab = ref<'home' | 'meals' | 'shopping' | 'insights'>('home')
 const theme = ref<'dark' | 'light'>((localStorage.getItem('diet-theme') as 'dark' | 'light') || 'dark')
 const search = ref('')
 const excludeVariableMeals = ref(true)
-const storedMobilePlanView = localStorage.getItem('diet-mobile-plan-view')
-const mobilePlanView = ref<'inline' | 'table'>(storedMobilePlanView === 'table' ? 'table' : 'inline')
+const mobilePlanView = ref<'inline' | 'table'>('inline')
 const modal = ref(false)
 const editing = ref<Meal | null>(null)
 const viewing = ref(false)
@@ -413,7 +412,6 @@ watch(theme, value => {
   localStorage.setItem('diet-theme', value)
 }, { immediate: true })
 watch(locale, value => localStorage.setItem('diet-language', value))
-watch(mobilePlanView, value => localStorage.setItem('diet-mobile-plan-view', value))
 
 async function login() {
   if (!auth) return
@@ -1156,7 +1154,7 @@ function ingredientKeyFor(name: string): string {
                     <span>{{ storeSelectionLabel(ingredient.storeIds) }}</span><ChevronRight class="select-chevron" :size="15" />
                   </button>
                   <Teleport to="body">
-                    <div v-if="openPickerKey === `store-${ingredient.localId}`" class="custom-select-menu dropdown-menu-portal" :style="dropdownStyle" @click.stop>
+                    <div v-if="openPickerKey === `store-${ingredient.localId}`" class="custom-select-menu store-select-menu dropdown-menu-portal" :style="dropdownStyle" @click.stop>
                       <button type="button" class="custom-select-option" :class="{ selected: !ingredient.storeIds.length }" @click="pickStore(ingredient, '')">{{ t('noStore') }}<Check v-if="!ingredient.storeIds.length" :size="14" /></button>
                       <button v-for="store in stores" :key="store.id" type="button" class="custom-select-option multi-select-option" :class="{ selected: ingredient.storeIds.includes(store.id) }" @click="pickStore(ingredient, store.id)">{{ store.name }}<Check v-if="ingredient.storeIds.includes(store.id)" :size="14" /></button>
                     </div>

@@ -127,6 +127,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .custom-select-trigger > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .select-chevron { flex: 0 0 auto; color: var(--muted); transform: rotate(90deg); }
 .custom-select-menu { position: absolute; top: calc(100% + 7px); right: 0; left: 0; z-index: 60; max-height: 245px; overflow: auto; padding: 5px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-raised); box-shadow: var(--shadow); overscroll-behavior: contain; }
+.store-select-menu { display: grid; gap: 4px; }
 .custom-select-option { width: 100%; display: block; padding: 10px 11px; border: 0; border-radius: 8px; color: var(--text); background: transparent; text-align: left; font-size: 11px; }
 .custom-select-option:hover, .custom-select-option.selected { color: var(--accent); background: var(--soft); }
 .meal-picker-actions { min-width: 0; display: flex; align-items: center; gap: 7px; }
@@ -547,6 +548,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
     width: 680px;
     min-width: 680px;
     grid-template-columns: 90px minmax(0, 1fr);
+    clip-path: inset(0 round 13px);
   }
   .plan-day-list-table .plan-day-heading {
     position: sticky;
@@ -626,6 +628,10 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .store-picker-line { flex-wrap: wrap; }
   .field-caption { width: 100%; }
   .store-select-wrap { flex-basis: calc(100% - 98px); }
+  .store-select-menu .multi-select-option:not(.selected):hover {
+    color: var(--text);
+    background: transparent;
+  }
   .add-store-link { min-height: 34px; padding: 6px 8px; }
   .remove-ingredient { margin-left: auto; }
   .meal-modal { padding: 17px; }
