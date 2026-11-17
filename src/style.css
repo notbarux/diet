@@ -440,10 +440,11 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .frequency strong { font-size: 16px; }
   .row-actions { width: calc(100% - 27px); flex-direction: row; justify-content: flex-end; gap: 5px; margin-left: 27px; }
   .row-actions .icon-btn { width: 31px; height: 31px; }
-  .plan-heading { align-items: flex-start !important; flex-direction: column; gap: 13px; }
-  .plan-toolbar { width: 100%; gap: 5px; }
-  .plan-toolbar .secondary-btn { min-height: 36px; padding: 8px 9px; font-size: 10px; }
-  .plan-arrow { width: 34px; height: 35px; }
+  .plan-heading { align-items: center !important; flex-direction: row; justify-content: space-between; gap: 8px; }
+  .plan-heading h1 { margin: 0; font-size: 30px; white-space: nowrap; }
+  .plan-toolbar { width: auto; flex: 0 0 auto; gap: 5px; }
+  .plan-toolbar .secondary-btn { min-height: 36px; padding: 8px 9px; font-size: 10px; white-space: nowrap; }
+  .plan-arrow { width: 34px; height: 35px; flex: 0 0 34px; }
   .plan-day-list { gap: 9px; padding-bottom: 15px; }
   .plan-day-row { grid-template-columns: minmax(0, 1fr); }
   .plan-day-heading { min-height: 58px; padding: 10px 13px; border-right: 0; border-bottom: 1px solid var(--line); }
@@ -504,6 +505,11 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .top-actions .icon-btn { width: 28px; }
   .top-nav-item { gap: 3px; padding: 0 3px; font-size: 8px; }
   .top-nav-item svg { width: 12px; height: 12px; }
+  .plan-heading { gap: 5px; }
+  .plan-heading h1 { font-size: 27px; }
+  .plan-toolbar { gap: 3px; }
+  .plan-toolbar .secondary-btn { min-height: 34px; padding: 7px 6px; font-size: 9px; }
+  .plan-arrow { width: 30px; height: 32px; flex-basis: 30px; }
   .day-meal-picker-actions { gap: 3px; }
   .day-meal-actions { gap: 3px; }
   .day-meal-view-btn, .day-meal-actions .clear-meal-btn { width: 27px; height: 27px; min-width: 27px; min-height: 27px; flex-basis: 27px; }
