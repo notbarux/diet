@@ -21,7 +21,7 @@ import {
   ChefHat, Utensils, Plus, ChevronLeft, ChevronRight, Sun, Moon,
   Languages, Search, LogOut, X, Trash2, Pencil, Sparkles, ShoppingBasket,
   Check, Store as StoreIcon, House, ShoppingCart, SlidersHorizontal, ChartPie,
-  ChevronUp, ChevronDown,
+  ChevronUp, ChevronDown, Eye,
 } from '@lucide/vue'
 
 const { t, locale } = useI18n()
@@ -39,11 +39,13 @@ const search = ref('')
 const filterVariableMeals = ref(true)
 const modal = ref(false)
 const editing = ref<Meal | null>(null)
+const viewing = ref(false)
 const openPickerKey = ref<string | null>(null)
 const dropdownAnchor = ref<HTMLElement | null>(null)
 const dropdownStyle = ref<Record<string, string>>({ visibility: 'hidden' })
 const form = ref({
   name: '',
+  variable: false,
   ingredients: [] as Array<MealIngredient & { localId: string }>,
 })
 const addingStoreFor = ref<string | null>(null)
@@ -445,6 +447,10 @@ function clearPlanMeal(date: Date, type: MealType) {
   void setPlan(date, type, '')
   closePicker()
 }
+function plannedMeal(dayKey: string, type: MealType): Meal | undefined {
+  const mealId = plans.value[dayKey]?.meals?.[type]?.mealId
+  return meals.value.find(meal => meal.id === mealId)
+}
 function plannedMealName(dayKey: string, type: MealType): string | undefined {
   const planned = plans.value[dayKey]?.meals?.[type]
   if (!planned) return undefined
@@ -519,7 +525,8 @@ function nutritionCoverageText(metric: { value: number | null; knownIngredients:
   return t('nutritionComplete')
 }
 
-function openMeal(meal?: Meal) {
+function openMeal(meal?: Meal, readOnly = false) {
+  viewing.value = readOnly
   editing.value = meal || null
   form.value = meal ? {
     name: meal.name,
@@ -528,7 +535,16 @@ function openMeal(meal?: Meal) {
   } : { name: '', variable: false, ingredients: [] }
   addingStoreFor.value = null
   newStoreName.value = ''
+  openPickerKey.value = null
   modal.value = true
+}
+function viewMeal(meal: Meal) {
+  openMeal(meal, true)
+}
+function viewPlannedMeal(day: Date, type: MealType) {
+  const mealId = plans.value[dateKey(day)]?.meals?.[type]?.mealId
+  const meal = meals.value.find(item => item.id === mealId)
+  if (meal) viewMeal(meal)
 }
 function addIngredient() {
   form.value.ingredients.push({
@@ -865,7 +881,10 @@ function ingredientKeyFor(name: string): string {
                       </div>
                     </Teleport>
                   </div>
-                  <button v-if="plans[dateKey(day)]?.meals[type]" type="button" class="icon-btn clear-meal-btn" :title="t('clearMeal')" :aria-label="t('clearMeal')" @click="clearPlanMeal(day, type)"><X :size="15" /></button>
+                  <div v-if="plannedMeal(dateKey(day), type)" class="day-meal-actions">
+                    <button type="button" class="secondary-btn small-btn day-meal-view-btn" :title="t('viewMeal')" @click="viewPlannedMeal(day, type)"><Eye :size="14" />{{ t('viewMeal') }}</button>
+                    <button type="button" class="icon-btn clear-meal-btn" :title="t('clearMeal')" :aria-label="t('clearMeal')" @click="clearPlanMeal(day, type)"><X :size="15" /></button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -918,7 +937,7 @@ function ingredientKeyFor(name: string): string {
                 <strong :class="frequencyTone(averageFrequencyFor(meal.id))">{{ averageFrequencyFor(meal.id) }}</strong>
               </div>
             </div>
-            <div class="row-actions"><button class="icon-btn" :title="t('editMeal')" @click="openMeal(meal)"><Pencil /></button><button class="icon-btn danger" :title="t('delete')" @click="removeMeal(meal)"><Trash2 /></button></div>
+            <div class="row-actions"><button class="icon-btn" :title="t('viewMeal')" :aria-label="t('viewMeal')" @click="viewMeal(meal)"><Eye /></button><button class="icon-btn" :title="t('editMeal')" @click="openMeal(meal)"><Pencil /></button><button class="icon-btn danger" :title="t('delete')" @click="removeMeal(meal)"><Trash2 /></button></div>
           </article>
         </div>
         <div v-else class="empty-collection"><div class="state-icon"><ChefHat /></div><h3>{{ t('noMeals') }}</h3><button class="text-btn" @click="openMeal()">{{ t('addMeal') }} +</button></div>
@@ -1062,11 +1081,12 @@ function ingredientKeyFor(name: string): string {
 
     <div v-if="modal" class="modal-backdrop" @click.self="modal = false">
       <section class="meal-modal">
-        <div class="modal-header"><div><p class="eyebrow">MEAL LIBRARY</p><h2>{{ editing ? t('editMeal') : t('addMeal') }}</h2></div><button class="icon-btn" @click="modal = false"><X /></button></div>
+        <div class="modal-header"><div><p class="eyebrow">MEAL LIBRARY</p><h2>{{ editing ? (viewing ? t('viewMeal') : t('editMeal')) : t('addMeal') }}</h2></div><button class="icon-btn" :aria-label="t('close')" @click="modal = false"><X /></button></div>
         <form @submit.prevent="saveMeal">
+          <fieldset class="meal-editor-fieldset" :disabled="viewing">
           <label class="form-field">{{ t('mealName') }}<input v-model="form.name" required maxlength="90" autofocus /></label>
           <div class="ingredients-editor">
-            <div class="ingredients-editor-heading"><h3>{{ t('ingredients') }}</h3><button type="button" class="secondary-btn small-btn" @click="addIngredient"><Plus :size="15" />{{ t('addIngredient') }}</button></div>
+            <div class="ingredients-editor-heading"><h3>{{ t('ingredients') }}</h3><button v-if="!viewing" type="button" class="secondary-btn small-btn" @click="addIngredient"><Plus :size="15" />{{ t('addIngredient') }}</button></div>
             <p v-if="!form.ingredients.length" class="empty-form-hint">{{ t('ingredientsEmpty') }}</p>
             <div v-for="ingredient in form.ingredients" :key="ingredient.localId" class="ingredient-editor-row">
               <div class="ingredient-editor-fields">
@@ -1100,6 +1120,7 @@ function ingredientKeyFor(name: string): string {
                 </div>
                 <button
                   type="button"
+                  v-if="!viewing"
                   class="text-btn add-store-link"
                   :class="{ active: addingStoreFor === ingredient.localId }"
                   :aria-expanded="addingStoreFor === ingredient.localId"
@@ -1111,9 +1132,9 @@ function ingredientKeyFor(name: string): string {
                   <Plus v-else :size="14" />
                   <span>{{ t('addStore') }}</span>
                 </button>
-                <button type="button" class="icon-btn remove-ingredient" :title="t('remove')" @click="removeIngredient(ingredient.localId)"><Trash2 :size="15" /></button>
+                <button v-if="!viewing" type="button" class="icon-btn remove-ingredient" :title="t('remove')" @click="removeIngredient(ingredient.localId)"><Trash2 :size="15" /></button>
               </div>
-              <div v-if="addingStoreFor === ingredient.localId" :id="`new-store-${ingredient.localId}`" class="new-store-form" role="region" :aria-label="t('addStore')">
+              <div v-if="!viewing && addingStoreFor === ingredient.localId" :id="`new-store-${ingredient.localId}`" class="new-store-form" role="region" :aria-label="t('addStore')">
                 <input v-model="newStoreName" :placeholder="t('newStore')" maxlength="60" @keydown.enter.prevent="addStore(ingredient.localId)" />
                 <button class="primary-btn small-btn" type="button" :disabled="!newStoreName.trim()" @click="addStore(ingredient.localId)">{{ t('saveStore') }}</button>
               </div>
@@ -1138,7 +1159,8 @@ function ingredientKeyFor(name: string): string {
               </details>
             </div>
           </div>
-          <div class="modal-actions"><button type="button" class="secondary-btn" @click="modal = false">{{ t('cancel') }}</button><button class="primary-btn" type="submit">{{ t('save') }}</button></div>
+          </fieldset>
+          <div v-if="!viewing" class="modal-actions"><button type="button" class="secondary-btn" @click="modal = false">{{ t('cancel') }}</button><button class="primary-btn" type="submit">{{ t('save') }}</button></div>
         </form>
       </section>
     </div>

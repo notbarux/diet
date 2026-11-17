@@ -4,7 +4,7 @@ const messages = {
   en: {
     home: 'Home', today: 'Today', tomorrow: 'Tomorrow', meals: 'Meals', plan: 'Plan', shopping: 'Shopping',
     breakfast: 'Breakfast', lunch: 'Lunch', snack: 'Snack', dinner: 'Dinner',
-    addMeal: 'Add meal', editMeal: 'Edit meal', mealName: 'Meal name',
+    addMeal: 'Add meal', editMeal: 'Edit meal', viewMeal: 'View meal', mealName: 'Meal name',
     averagePerWeek: 'Average per week', ingredients: 'Ingredients', ingredientsHelp: 'Ingredients for this meal',
     ingredientName: 'Ingredient', quantity: 'Quantity', quantityUnitGrams: 'Grams (g)', quantityUnitPieces: 'Units', quantityUnitPiecesShort: 'pcs', store: 'Stores', selectStore: 'Choose a store', chooseStores: 'Choose stores', storesSelected: '{count} shops selected',
     newStore: 'New shop name', saveStore: 'Save shop', ingredientsEmpty: 'No ingredients added yet.', remove: 'Remove', backToPlan: 'Back to plan', alreadyAtHome: 'Already at home', excludeAlreadyAtHome: 'Exclude already at home', shoppingAllAtHome: 'Everything is already at home', shoppingAllAtHomeHint: 'Turn off the filter to see all planned ingredients.', bought: 'Bought', toBuy: 'To buy',
@@ -42,7 +42,7 @@ const messages = {
   it: {
     home: 'Home', today: 'Oggi', tomorrow: 'Domani', meals: 'Piatti', plan: 'Piano', shopping: 'Spesa',
     breakfast: 'Colazione', lunch: 'Pranzo', snack: 'Merenda', dinner: 'Cena',
-    addMeal: 'Aggiungi piatto', editMeal: 'Modifica piatto', mealName: 'Nome del piatto',
+    addMeal: 'Aggiungi piatto', editMeal: 'Modifica piatto', viewMeal: 'Visualizza piatto', mealName: 'Nome del piatto',
     averagePerWeek: 'Media settimanale', ingredients: 'Ingredienti', ingredientsHelp: 'Ingredienti del piatto',
     ingredientName: 'Ingrediente', quantity: 'Quantità', quantityUnitGrams: 'Grammi (g)', quantityUnitPieces: 'Unità', quantityUnitPiecesShort: 'pz', store: 'Negozi', selectStore: 'Scegli un negozio', chooseStores: 'Scegli i negozi', storesSelected: '{count} negozi selezionati',
     newStore: 'Nome del nuovo negozio', saveStore: 'Salva negozio', ingredientsEmpty: 'Nessun ingrediente inserito.', remove: 'Rimuovi', backToPlan: 'Torna al piano', alreadyAtHome: 'Già in casa', excludeAlreadyAtHome: 'Escludi ciò che è già in casa', shoppingAllAtHome: 'È già tutto in casa', shoppingAllAtHomeHint: 'Disattiva il filtro per visualizzare tutti gli ingredienti pianificati.', bought: 'Comprato', toBuy: 'Da comprare',
