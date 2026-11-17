@@ -191,6 +191,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .mobile-plan-view-toolbar { display: none; }
 .plan-heading { align-items: center; }
 .plan-toolbar { display: flex; align-items: center; gap: 7px; }
+.week-range-display { min-width: 105px; padding: 0 4px; color: var(--muted); font: 600 10px 'IBM Plex Mono', monospace; text-align: center; white-space: nowrap; }
 .plan-arrow { width: 39px; height: 39px; border-color: var(--line); background: var(--panel); }
 .plan-arrow:disabled { opacity: .3; cursor: not-allowed; }
 .plan-day-list { width: 100%; display: grid; gap: 10px; padding: 3px 0 18px; }
@@ -271,7 +272,6 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .insights-page { max-width: 1500px; }
 .insights-heading { align-items: center !important; gap: 15px; }
 .insights-intro { margin: 7px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
-.insights-week-label { flex: 0 0 auto; color: var(--muted); font: 600 11px 'IBM Plex Mono', monospace; }
 .insights-section { display: grid; gap: 12px; margin-bottom: 25px; }
 .insights-section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .insights-section-heading h2 { margin: 0; color: var(--text); font-size: 15px; font-weight: 800; }
@@ -280,7 +280,6 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .insight-metric-card { min-width: 0; display: grid; gap: 7px; padding: 15px; border: 1px solid var(--line); border-radius: 13px; background: var(--panel); }
 .insight-metric-card > span { color: var(--muted); font-size: 10px; font-weight: 700; }
 .insight-metric-card > strong { color: var(--text); font: 700 22px 'IBM Plex Mono', monospace; letter-spacing: -.6px; }
-.insight-metric-card > small, .insight-coverage { color: var(--muted); font-size: 9px; line-height: 1.4; }
 .insights-days { display: grid; gap: 10px; }
 .insight-day-card { overflow: hidden; border: 1px solid var(--line); border-radius: 13px; background: var(--panel); }
 .insight-day-heading { min-height: 55px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
@@ -298,14 +297,29 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .insight-nutrient-values > span { min-width: 0; display: grid; gap: 3px; }
 .insight-nutrient-values small { color: var(--muted); font-size: 8px; font-weight: 700; }
 .insight-nutrient-values strong { overflow: hidden; color: var(--text); font: 600 10px 'IBM Plex Mono', monospace; text-overflow: ellipsis; white-space: nowrap; }
-.insight-nutrient-values em { color: var(--muted); font: normal 8px 'IBM Plex Mono', monospace; }
-.insight-coverage { grid-column: 2; margin: -5px 0 0; }
 .insight-empty-day { margin: 0; padding: 14px; color: var(--muted); font-size: 10px; }
-.insights-dish-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
-.insight-dish-card { min-width: 0; display: grid; gap: 10px; padding: 13px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
-.insight-dish-card h3 { overflow: hidden; margin: 0; color: var(--text); font-size: 12px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+.insight-progress { height: 5px; overflow: hidden; border-radius: 999px; background: var(--line); }
+.insight-progress > span { height: 100%; display: block; border-radius: inherit; background: var(--accent); transition: width .2s ease; }
+.insight-progress.on-target > span { background: var(--success); }
+.insight-progress.below-target > span { background: #d6b46f; }
+.insight-progress.above-target > span { background: var(--danger); }
+.insight-daily-reference-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 7px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.insight-daily-reference-item { min-width: 0; display: grid; align-content: start; gap: 5px; padding: 9px; border-radius: 9px; background: var(--panel-soft); }
+.insight-daily-reference-item > small { color: var(--muted); font-size: 8px; font-weight: 800; text-transform: uppercase; }
+.insight-daily-reference-item > strong { color: var(--text); font: 700 13px 'IBM Plex Mono', monospace; }
+.insight-daily-reference-item > span { min-height: 24px; color: var(--muted); font-size: 8px; line-height: 1.35; }
+.insights-heading-actions { flex: 0 0 auto; }
+.nutrition-profile-panel { margin: -10px 0 24px; padding: 16px; border: 1px solid var(--line); border-radius: 13px; background: var(--panel); }
+.nutrition-profile-form { display: grid; gap: 13px; }
+.nutrition-profile-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.nutrition-profile-grid label { min-width: 0; display: grid; align-content: start; gap: 6px; color: var(--muted); font-size: 9px; font-weight: 700; }
+.nutrition-profile-grid input, .nutrition-profile-grid select { width: 100%; min-width: 0; min-height: 37px; padding: 8px 9px; border: 1px solid var(--line); border-radius: 9px; color: var(--text); background: var(--panel-raised); font: inherit; font-size: 10px; }
+.nutrition-profile-grid input:focus, .nutrition-profile-grid select:focus { outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: 1px; }
+.nutrition-profile-footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.nutrition-profile-note { max-width: 650px; margin: 0; color: var(--muted); font-size: 9px; line-height: 1.5; }
+.nutrition-profile-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 10px; }
+.nutrition-profile-actions > span { color: var(--muted); font-size: 9px; }
 .dish-nutrient-values { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 9px; }
-.insight-dish-card .insight-coverage { grid-column: auto; margin: 0; }
 .insights-footnote { margin: 0 0 18px; color: var(--muted); font-size: 10px; line-height: 1.55; }
 
 /* Meal and ingredient editor. */
@@ -477,7 +491,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .plan-heading { align-items: center !important; flex-direction: row; justify-content: space-between; gap: 8px; }
   .plan-heading h1 { margin: 0; font-size: 30px; white-space: nowrap; }
   .plan-toolbar { width: auto; flex: 0 0 auto; gap: 5px; }
-  .plan-toolbar .secondary-btn { min-height: 36px; padding: 8px 9px; font-size: 10px; white-space: nowrap; }
+  .week-range-display { min-width: 94px; font-size: 9px; }
   .plan-arrow { width: 34px; height: 35px; flex: 0 0 34px; }
   .mobile-plan-view-toolbar {
     display: flex;
@@ -609,20 +623,28 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .meal-view-nutrition { grid-template-columns: minmax(0, 1fr); gap: 7px; }
   .meal-view-nutrition-values { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px 7px; }
   .nutrition-input-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .insights-heading { align-items: flex-start !important; flex-direction: column; gap: 8px; }
-  .insights-week-label { font-size: 10px; }
+  .insights-heading { align-items: center !important; flex-direction: row; gap: 8px; }
   .insights-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+  .insights-week-heading { align-items: center; flex-direction: row; gap: 6px; }
+  .insights-week-heading h2 { font-size: 13px; }
+  .insights-week-toolbar { gap: 2px; }
+  .insights-week-toolbar .week-range-display { min-width: 84px; padding: 0 1px; font-size: 8px; }
+  .insights-heading-actions .secondary-btn { min-height: 33px; gap: 4px; padding: 6px 7px; font-size: 8px; }
+  .nutrition-profile-panel { padding: 11px; }
+  .nutrition-profile-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .nutrition-profile-footer { align-items: flex-start; flex-direction: column; gap: 9px; }
+  .nutrition-profile-actions { width: 100%; justify-content: space-between; }
+  .insight-daily-reference-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; padding: 9px; }
+  .insight-daily-reference-item { padding: 8px; }
   .insight-metric-card { gap: 6px; padding: 11px; }
   .insight-metric-card > strong { font-size: 18px; }
   .insights-section-heading { align-items: flex-start; flex-direction: column; gap: 4px; }
   .insight-meal-row { grid-template-columns: minmax(0, 1fr); gap: 9px; padding: 11px; }
-  .insight-coverage { grid-column: 1; margin: -5px 0 0; }
   .insight-day-heading { padding: 10px 11px; }
   .insight-day-heading > div { gap: 7px; }
   .insight-nutrient-values { gap: 4px; }
   .insight-nutrient-values small { font-size: 7px; }
   .insight-nutrient-values strong { font-size: 9px; }
-  .insights-dish-grid { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 370px) {
   .app-topbar { padding-right: 7px; padding-left: 7px; }

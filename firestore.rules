@@ -8,7 +8,24 @@ service cloud.firestore {
     }
     match /users/{uid} {
       allow read: if request.auth != null && request.auth.uid == uid;
-      allow write: if false;
+      allow create, delete: if false;
+      allow update: if request.auth != null &&
+        request.auth.uid == uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nutritionProfile']) &&
+        request.resource.data.nutritionProfile is map &&
+        request.resource.data.nutritionProfile.keys().hasAll(['weightKg', 'heightCm', 'age', 'sex', 'activityLevel']) &&
+        request.resource.data.nutritionProfile.keys().hasOnly(['weightKg', 'heightCm', 'age', 'sex', 'activityLevel']) &&
+        request.resource.data.nutritionProfile.weightKg is number &&
+        request.resource.data.nutritionProfile.weightKg >= 20 &&
+        request.resource.data.nutritionProfile.weightKg <= 300 &&
+        request.resource.data.nutritionProfile.heightCm is number &&
+        request.resource.data.nutritionProfile.heightCm >= 120 &&
+        request.resource.data.nutritionProfile.heightCm <= 230 &&
+        request.resource.data.nutritionProfile.age is int &&
+        request.resource.data.nutritionProfile.age >= 19 &&
+        request.resource.data.nutritionProfile.age <= 78 &&
+        request.resource.data.nutritionProfile.sex in ['female', 'male'] &&
+        request.resource.data.nutritionProfile.activityLevel in ['sedentary', 'light', 'moderate', 'high'];
     }
     match /meals/{mealId} { allow read, write: if allowed(); }
     match /plan/{dayId} { allow read, write: if allowed(); }

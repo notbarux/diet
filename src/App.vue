@@ -37,6 +37,14 @@ const theme = ref<'dark' | 'light'>((localStorage.getItem('diet-theme') as 'dark
 const search = ref('')
 const excludeVariableMeals = ref(true)
 const mobilePlanView = ref<'inline' | 'grid'>('inline')
+type NutritionSex = 'female' | 'male' | ''
+type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'high'
+type NutritionProfile = { weightKg: number; heightCm: number; age: number | null; sex: NutritionSex; activityLevel: ActivityLevel }
+type NutritionTarget = { min: number | null; max: number | null; goal: number }
+const nutritionProfile = ref<NutritionProfile>({ weightKg: 60, heightCm: 170, age: null, sex: '', activityLevel: 'sedentary' })
+const showNutritionProfile = ref(false)
+const nutritionProfileSaving = ref(false)
+const nutritionProfileMessage = ref('')
 const modal = ref(false)
 const editing = ref<Meal | null>(null)
 const viewing = ref(false)
@@ -126,6 +134,15 @@ const weekDays = computed(() => {
     return day
   })
 })
+const selectedWeekRange = computed(() => {
+  const first = weekDays.value[0]
+  const last = weekDays.value[6]
+  const firstMonth = new Intl.DateTimeFormat('en-US', { month: 'short' }).format(first)
+  const sameMonth = first.getMonth() === last.getMonth() && first.getFullYear() === last.getFullYear()
+  return sameMonth
+    ? `${firstMonth} ${first.getDate()}–${last.getDate()}`
+    : `${monthDay(first)} – ${monthDay(last)}`
+})
 const nutrientMetrics = computed(() => [
   { key: 'calories' as const, label: 'Calories', shortLabel: 'kcal', unit: 'kcal' },
   { key: 'carbs' as const, label: 'Carbohydrates', shortLabel: 'Carbs', unit: 'g' },
@@ -158,15 +175,33 @@ const insightDays = computed(() => weekDays.value.map(date => {
 const insightWeekNutrition = computed(() =>
   summarizeNutrition(insightDays.value.flatMap(day => day.meals.flatMap(meal => meal.ingredients))),
 )
-const dishNutrition = computed(() => meals.value.map(meal => ({
-  id: meal.id,
-  name: meal.name,
-  nutrition: summarizeNutrition(meal.ingredients),
-  hasNutrition: mealHasNutrition(meal),
-})))
-const insightWeekRange = computed(() =>
-  `${monthDay(weekDays.value[0])} – ${monthDay(weekDays.value[6])}`,
-)
+const activityFactors: Record<ActivityLevel, number> = { sedentary: 1.2, light: 1.375, moderate: 1.55, high: 1.725 }
+const isNutritionProfileComplete = computed(() => {
+  const profile = nutritionProfile.value
+  return Number.isFinite(profile.weightKg) && profile.weightKg >= 20 && profile.weightKg <= 300 &&
+    Number.isFinite(profile.heightCm) && profile.heightCm >= 120 && profile.heightCm <= 230 &&
+    typeof profile.age === 'number' && Number.isInteger(profile.age) && profile.age >= 19 && profile.age <= 78 &&
+    (profile.sex === 'female' || profile.sex === 'male')
+})
+const dailyNutritionTargets = computed<Record<NutrientKey, NutritionTarget> | null>(() => {
+  if (!isNutritionProfileComplete.value) return null
+  const profile = nutritionProfile.value
+  const restingEnergy = 10 * profile.weightKg + 6.25 * profile.heightCm - 5 * profile.age! +
+    (profile.sex === 'male' ? 5 : -161)
+  const calories = Math.round(restingEnergy * activityFactors[profile.activityLevel])
+  const carbsMin = calories * 0.45 / 4
+  const carbsMax = calories * 0.60 / 4
+  const fatMin = calories * 0.20 / 9
+  const fatMax = calories * 0.35 / 9
+  return {
+    calories: { min: calories * 0.9, max: calories * 1.1, goal: calories },
+    carbs: { min: carbsMin, max: carbsMax, goal: (carbsMin + carbsMax) / 2 },
+    protein: { min: profile.weightKg * 0.83, max: null, goal: profile.weightKg * 0.83 },
+    fat: { min: fatMin, max: fatMax, goal: (fatMin + fatMax) / 2 },
+    fiber: { min: 25, max: null, goal: 25 },
+    salt: { min: null, max: 5, goal: 5 },
+  }
+})
 const weekStartKey = dateKey(startOfWeek(planningReferenceDate))
 const currentWeekEndDate = new Date(startOfWeek(planningReferenceDate))
 currentWeekEndDate.setDate(currentWeekEndDate.getDate() + 6)
@@ -312,6 +347,48 @@ function subscribe() {
   })
 }
 
+function resetNutritionProfile() {
+  nutritionProfile.value = { weightKg: 60, heightCm: 170, age: null, sex: '', activityLevel: 'sedentary' }
+  nutritionProfileMessage.value = ''
+}
+function loadNutritionProfile(raw: unknown) {
+  if (typeof raw !== 'object' || raw === null) {
+    resetNutritionProfile()
+    return
+  }
+  const data = raw as Record<string, unknown>
+  nutritionProfile.value = {
+    weightKg: typeof data.weightKg === 'number' && Number.isFinite(data.weightKg) ? data.weightKg : 60,
+    heightCm: typeof data.heightCm === 'number' && Number.isFinite(data.heightCm) ? data.heightCm : 170,
+    age: typeof data.age === 'number' && Number.isInteger(data.age) ? data.age : null,
+    sex: data.sex === 'female' || data.sex === 'male' ? data.sex : '',
+    activityLevel: data.activityLevel === 'light' || data.activityLevel === 'moderate' || data.activityLevel === 'high' ? data.activityLevel : 'sedentary',
+  }
+  nutritionProfileMessage.value = ''
+}
+async function saveNutritionProfile() {
+  if (!db || !user.value || !isNutritionProfileComplete.value || nutritionProfileSaving.value) return
+  nutritionProfileSaving.value = true
+  nutritionProfileMessage.value = ''
+  try {
+    await updateDoc(doc(db, 'users', user.value.uid), {
+      nutritionProfile: {
+        weightKg: nutritionProfile.value.weightKg,
+        heightCm: nutritionProfile.value.heightCm,
+        age: nutritionProfile.value.age,
+        sex: nutritionProfile.value.sex,
+        activityLevel: nutritionProfile.value.activityLevel,
+      },
+    })
+    nutritionProfileMessage.value = 'Reference profile saved.'
+  } catch (error) {
+    console.error('Unable to save nutrition profile:', error)
+    nutritionProfileMessage.value = 'Could not save the profile. Check Firestore permissions.'
+  } finally {
+    nutritionProfileSaving.value = false
+  }
+}
+
 async function checkAccess(currentUser: User) {
   if (!db) {
     checking.value = false
@@ -320,7 +397,10 @@ async function checkAccess(currentUser: User) {
   try {
     const snapshot = await getDoc(doc(db, 'users', currentUser.uid))
     access.value = snapshot.exists() && snapshot.data().enabled === true
-    if (access.value) subscribe()
+    if (access.value) {
+      loadNutritionProfile(snapshot.data().nutritionProfile)
+      subscribe()
+    }
   } catch (error) {
     console.error('Unable to verify user access:', error)
     access.value = false
@@ -392,6 +472,8 @@ onMounted(() => {
     shoppingStatuses.value = {}
     storePriorityOrder.value = []
     storePriorityDraft.value = []
+    resetNutritionProfile()
+    showNutritionProfile.value = false
     if (currentUser) await checkAccess(currentUser)
     else checking.value = false
   })
@@ -518,12 +600,35 @@ function changeIngredientNutritionBasis(ingredient: MealIngredient, event: Event
   ingredient.nutritionBasis = basis
   ingredient.nutrition = undefined
 }
-function nutritionCoverageText(metric: { value: number | null; knownIngredients: number; totalIngredients: number }): string {
-  if (!metric.totalIngredients || !metric.knownIngredients) return 'Not enough data'
-  if (metric.knownIngredients < metric.totalIngredients) {
-    return `${metric.knownIngredients}/${metric.totalIngredients} ingredients included`
-  }
-  return 'All ingredients included'
+function scaledNutritionTarget(key: NutrientKey, multiplier: number): NutritionTarget | null {
+  const target = dailyNutritionTargets.value?.[key]
+  if (!target) return null
+  return { min: target.min === null ? null : target.min * multiplier, max: target.max === null ? null : target.max * multiplier, goal: target.goal * multiplier }
+}
+function nutritionReferenceLabel(key: NutrientKey, multiplier = 1): string {
+  const target = scaledNutritionTarget(key, multiplier)
+  if (!target) return 'Set profile to calculate'
+  const unit = key === 'calories' ? 'kcal' : 'g'
+  const amount = (value: number) => key === 'calories'
+    ? formatNutritionValue(value, unit)
+    : formatNutritionValue(Math.round(value), unit)
+  if (key === 'calories') return `Target: ${amount(target.goal)}`
+  if (key === 'salt') return `Limit: < ${amount(target.max ?? 0)}`
+  if (target.min !== null && target.max !== null) return `Range: ${amount(target.min)}–${amount(target.max)}`
+  if (target.min !== null) return `Minimum: ${amount(target.min)}`
+  return `Maximum: ${amount(target.max ?? 0)}`
+}
+function nutritionProgressWidth(key: NutrientKey, value: number | null, multiplier = 1): string {
+  const target = scaledNutritionTarget(key, multiplier)
+  if (!target || value === null || !Number.isFinite(value) || target.goal <= 0) return '0%'
+  return `${Math.min(100, Math.max(0, value / target.goal * 100)).toFixed(1)}%`
+}
+function nutritionReferenceState(key: NutrientKey, value: number | null, multiplier = 1): string {
+  const target = scaledNutritionTarget(key, multiplier)
+  if (!target || value === null || !Number.isFinite(value)) return 'no-reference'
+  if (value < (target.min ?? -Infinity)) return 'below-target'
+  if (value > (target.max ?? Infinity)) return 'above-target'
+  return 'on-target'
 }
 
 function openMeal(meal?: Meal, readOnly = false) {
@@ -646,9 +751,6 @@ function shiftWeek(delta: number) {
   next.setDate(next.getDate() + delta * 7)
   if (dateKey(startOfWeek(next)) < planStartWeekKey) return
   selectedDate.value = next
-}
-function goToThisWeek() {
-  selectedDate.value = new Date(planningReferenceDate)
 }
 const shoppingWeekDays = computed(() => {
   const monday = startOfWeek(today)
@@ -855,7 +957,7 @@ function ingredientKeyFor(name: string): string {
               <button type="button" class="mobile-plan-view-button" :class="{ active: mobilePlanView === 'inline' }" :aria-pressed="mobilePlanView === 'inline'" title="Inline view" aria-label="Inline view" @click="mobilePlanView = 'inline'"><List :size="16" /></button>
               <button type="button" class="mobile-plan-view-button" :class="{ active: mobilePlanView === 'grid' }" :aria-pressed="mobilePlanView === 'grid'" title="Grid view" aria-label="Grid view" @click="mobilePlanView = 'grid'"><LayoutGrid :size="16" /></button>
             </div>
-            <button class="secondary-btn this-week-btn" @click="goToThisWeek">{{ 'This week' }}</button>
+            <div class="week-range-display" aria-live="polite">{{ selectedWeekRange }}</div>
             <button class="icon-btn plan-arrow" :title="'Next week'" @click="shiftWeek(1)"><ChevronRight /></button>
           </div>
         </div>
@@ -959,17 +1061,71 @@ function ingredientKeyFor(name: string): string {
         <div class="page-heading compact section-heading insights-heading">
           <div>
             <h1>{{ 'Insights' }}</h1>
-            <p class="insights-intro">{{ 'Nutrition totals for the week selected on Home. Ingredient quantities are required for calculations.' }}</p>
+            <p class="insights-intro">{{ 'Daily and weekly nutrition compared with estimated reference values.' }}</p>
           </div>
-          <span class="insights-week-label">{{ insightWeekRange }}</span>
+          <div class="insights-heading-actions">
+            <button type="button" class="secondary-btn small-btn" @click="showNutritionProfile = !showNutritionProfile">
+              <SlidersHorizontal :size="15" />
+              {{ showNutritionProfile ? 'Close profile' : (isNutritionProfileComplete ? 'Edit reference profile' : 'Set reference profile') }}
+            </button>
+          </div>
         </div>
+        <section v-if="showNutritionProfile" class="nutrition-profile-panel">
+          <form class="nutrition-profile-form" @submit.prevent="saveNutritionProfile">
+            <div class="nutrition-profile-grid">
+              <label>Weight (kg)
+                <input v-model.number="nutritionProfile.weightKg" type="number" min="20" max="300" step="0.1" required />
+              </label>
+              <label>Height (cm)
+                <input v-model.number="nutritionProfile.heightCm" type="number" min="120" max="230" step="0.1" required />
+              </label>
+              <label>Age
+                <input v-model.number="nutritionProfile.age" type="number" min="19" max="78" step="1" required placeholder="Years" />
+              </label>
+              <label>Sex used in the estimate
+                <select v-model="nutritionProfile.sex" required>
+                  <option value="" disabled>Select</option>
+                  <option value="female">Female</option>
+                  <option value="male">Male</option>
+                </select>
+              </label>
+              <label>Activity level
+                <select v-model="nutritionProfile.activityLevel">
+                  <option value="sedentary">Sedentary · little or no exercise</option>
+                  <option value="light">Light · 1–3 days/week</option>
+                  <option value="moderate">Moderate · 3–5 days/week</option>
+                  <option value="high">High · 6–7 days/week</option>
+                </select>
+              </label>
+            </div>
+            <div class="nutrition-profile-footer">
+              <p class="nutrition-profile-note">Calories use the Mifflin–St Jeor estimate and an activity factor. Nutrient references follow EFSA adult reference ranges and WHO salt guidance.</p>
+              <div class="nutrition-profile-actions">
+                <span role="status">{{ nutritionProfileMessage }}</span>
+                <button class="primary-btn small-btn" type="submit" :disabled="!isNutritionProfileComplete || nutritionProfileSaving">
+                  {{ nutritionProfileSaving ? 'Saving…' : 'Save profile' }}
+                </button>
+              </div>
+            </div>
+          </form>
+        </section>
         <section class="insights-section">
-          <div class="insights-section-heading"><h2>{{ 'Weekly nutrition' }}</h2><span>{{ 'Selected Home week' }}</span></div>
+          <div class="insights-section-heading insights-week-heading">
+            <h2>{{ 'Weekly nutrition' }}</h2>
+            <div class="plan-toolbar insights-week-toolbar">
+              <button class="icon-btn plan-arrow" title="Previous week" aria-label="Previous week" :disabled="!canGoToPreviousWeek" @click="shiftWeek(-1)"><ChevronLeft /></button>
+              <div class="week-range-display" aria-live="polite">{{ selectedWeekRange }}</div>
+              <button class="icon-btn plan-arrow" title="Next week" aria-label="Next week" @click="shiftWeek(1)"><ChevronRight /></button>
+            </div>
+          </div>
           <div class="insights-summary-grid">
-            <article v-for="metric in nutrientMetrics" :key="metric.key" class="insight-metric-card">
+            <article v-for="metric in nutrientMetrics" :key="metric.key" class="insight-metric-card" :class="nutritionReferenceState(metric.key, insightWeekNutrition[metric.key].value, 7)">
               <span>{{ metric.label }}</span>
               <strong>{{ formatNutritionValue(insightWeekNutrition[metric.key].value, metric.unit) }}</strong>
-              <small>{{ nutritionCoverageText(insightWeekNutrition[metric.key]) }}</small>
+              <small>{{ nutritionReferenceLabel(metric.key, 7) }}</small>
+              <div class="insight-progress" :class="nutritionReferenceState(metric.key, insightWeekNutrition[metric.key].value, 7)" aria-hidden="true">
+                <span :style="{ width: nutritionProgressWidth(metric.key, insightWeekNutrition[metric.key].value, 7) }"></span>
+              </div>
             </article>
           </div>
         </section>
@@ -979,8 +1135,17 @@ function ingredientKeyFor(name: string): string {
             <article v-for="day in insightDays" :key="day.key" class="insight-day-card">
               <header class="insight-day-heading">
                 <div><span>{{ new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(day.date) }}</span><h3>{{ monthDay(day.date) }}</h3></div>
-                <strong>{{ formatNutritionValue(day.nutrition.calories.value, 'kcal') }}</strong>
               </header>
+              <div class="insight-daily-reference-grid">
+                <article v-for="metric in nutrientMetrics" :key="metric.key" class="insight-daily-reference-item" :class="nutritionReferenceState(metric.key, day.nutrition[metric.key].value)">
+                  <small>{{ metric.shortLabel }}</small>
+                  <strong>{{ formatNutritionValue(day.nutrition[metric.key].value, metric.unit) }}</strong>
+                  <span>{{ nutritionReferenceLabel(metric.key) }}</span>
+                  <div class="insight-progress" :class="nutritionReferenceState(metric.key, day.nutrition[metric.key].value)" aria-hidden="true">
+                    <span :style="{ width: nutritionProgressWidth(metric.key, day.nutrition[metric.key].value) }"></span>
+                  </div>
+                </article>
+              </div>
               <div v-if="day.meals.length" class="insight-day-meals">
                 <article v-for="meal in day.meals" :key="meal.type" class="insight-meal-row">
                   <div class="insight-meal-title"><span>{{ mealTypeLabels[meal.type] }}</span><strong>{{ meal.name }}</strong></div>
@@ -988,7 +1153,6 @@ function ingredientKeyFor(name: string): string {
                     <span v-for="metric in nutrientMetrics" :key="metric.key">
                       <small>{{ metric.shortLabel }}</small>
                       <strong>{{ formatNutritionValue(meal.nutrition[metric.key].value, metric.unit) }}</strong>
-                      <em>{{ meal.nutrition[metric.key].knownIngredients }}/{{ meal.nutrition[metric.key].totalIngredients }}</em>
                     </span>
                   </div>
                 </article>
@@ -997,23 +1161,6 @@ function ingredientKeyFor(name: string): string {
             </article>
           </div>
         </section>
-        <section class="insights-section">
-          <div class="insights-section-heading"><h2>{{ 'Nutrition by dish' }}</h2><span>{{ 'Recipe totals based on the ingredients and quantities saved in Meals.' }}</span></div>
-          <div v-if="dishNutrition.length" class="insights-dish-grid">
-            <article v-for="dish in dishNutrition" :key="dish.id" class="insight-dish-card">
-              <h3>{{ dish.name }}</h3>
-              <div v-if="dish.hasNutrition" class="insight-nutrient-values dish-nutrient-values">
-                <span v-for="metric in nutrientMetrics" :key="metric.key">
-                  <small>{{ metric.shortLabel }}</small>
-                  <strong>{{ formatNutritionValue(dish.nutrition[metric.key].value, metric.unit) }}</strong>
-                  <em>{{ dish.nutrition[metric.key].knownIngredients }}/{{ dish.nutrition[metric.key].totalIngredients }}</em>
-                </span>
-              </div>
-            </article>
-          </div>
-          <div v-else class="empty-collection"><ChefHat :size="28" /><h3>{{ 'No meals yet. Add your first dish.' }}</h3></div>
-        </section>
-        <p class="insights-footnote">{{ 'Totals include only ingredients with a quantity, a matching nutrition basis and the relevant nutrient value. Missing values are not treated as zero.' }}</p>
       </section>
       <section v-else class="page shopping-page">
         <div class="page-heading compact section-heading shopping-page-heading">
