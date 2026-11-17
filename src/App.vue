@@ -953,11 +953,11 @@ function ingredientKeyFor(name: string): string {
         <div class="page-heading compact plan-heading section-heading">
           <h1>{{ 'Home' }}</h1>
           <div class="plan-toolbar">
-            <button class="icon-btn plan-arrow" :title="'Previous week'" :disabled="!canGoToPreviousWeek" @click="shiftWeek(-1)"><ChevronLeft /></button>
             <div class="mobile-plan-view-toolbar" role="group" aria-label="Weekly view">
               <button type="button" class="mobile-plan-view-button" :class="{ active: mobilePlanView === 'inline' }" :aria-pressed="mobilePlanView === 'inline'" title="Inline view" aria-label="Inline view" @click="mobilePlanView = 'inline'"><List :size="16" /></button>
               <button type="button" class="mobile-plan-view-button" :class="{ active: mobilePlanView === 'grid' }" :aria-pressed="mobilePlanView === 'grid'" title="Grid view" aria-label="Grid view" @click="mobilePlanView = 'grid'"><LayoutGrid :size="16" /></button>
             </div>
+            <button class="icon-btn plan-arrow" :title="'Previous week'" :disabled="!canGoToPreviousWeek" @click="shiftWeek(-1)"><ChevronLeft /></button>
             <div class="week-range-display" aria-live="polite">{{ selectedWeekRange }}</div>
             <button class="icon-btn plan-arrow" :title="'Next week'" @click="shiftWeek(1)"><ChevronRight /></button>
           </div>
@@ -1269,7 +1269,7 @@ function ingredientKeyFor(name: string): string {
             </article>
           </div>
           <fieldset v-else class="meal-editor-fieldset">
-          <label class="form-field">{{ 'Meal name' }}<input v-model="form.name" required maxlength="90" autofocus /></label>
+          <label class="form-field meal-name-field">{{ 'Meal name' }}<input v-model="form.name" required maxlength="90" autofocus /></label>
           <div class="ingredients-editor">
             <div class="ingredients-editor-heading"><h3>{{ 'Ingredients' }}</h3><button v-if="!viewing" type="button" class="secondary-btn small-btn" @click="addIngredient"><Plus :size="15" />{{ 'Add ingredient' }}</button></div>
             <p v-if="!form.ingredients.length" class="empty-form-hint">{{ 'No ingredients added yet.' }}</p>
