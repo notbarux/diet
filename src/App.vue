@@ -882,7 +882,7 @@ function ingredientKeyFor(name: string): string {
                     </Teleport>
                   </div>
                   <div v-if="plannedMeal(dateKey(day), type)" class="day-meal-actions">
-                    <button type="button" class="secondary-btn small-btn day-meal-view-btn" :title="t('viewMeal')" @click="viewPlannedMeal(day, type)"><Eye :size="14" />{{ t('viewMeal') }}</button>
+                    <button type="button" class="icon-btn day-meal-view-btn" :title="t('viewMeal')" :aria-label="t('viewMeal')" @click="viewPlannedMeal(day, type)"><Eye :size="15" /></button>
                     <button type="button" class="icon-btn clear-meal-btn" :title="t('clearMeal')" :aria-label="t('clearMeal')" @click="clearPlanMeal(day, type)"><X :size="15" /></button>
                   </div>
                 </div>
