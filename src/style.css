@@ -355,6 +355,22 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .ingredients-editor { display: grid; gap: 11px; padding: 15px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-soft); }
 .ingredients-editor-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .ingredients-editor-heading h3 { margin: 0; color: var(--text); font-size: 13px; }
+.ingredients-heading-actions { display: flex; flex: 0 0 auto; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 7px; }
+.reusable-ingredients-panel { display: grid; gap: 10px; padding: 12px; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 10px; background: var(--panel); }
+.reusable-ingredients-search { gap: 6px; }
+.reusable-ingredients-search input { min-height: 36px; padding: 8px 10px; }
+.reusable-ingredients-list { min-width: 0; max-height: 260px; display: grid; gap: 7px; overflow-y: auto; overscroll-behavior: contain; }
+.reusable-ingredient-option { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-soft); }
+.reusable-ingredient-info { min-width: 0; flex: 1 1 auto; display: grid; gap: 5px; }
+.reusable-ingredient-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px 9px; }
+.reusable-ingredient-heading strong { color: var(--text); font-size: 11px; font-weight: 800; }
+.reusable-ingredient-heading > span { color: var(--accent); font: 600 10px 'IBM Plex Mono', monospace; }
+.reusable-ingredient-sources { margin: 0; color: var(--muted); font-size: 9px; line-height: 1.35; overflow-wrap: anywhere; }
+.reusable-ingredient-nutrition { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.reusable-ingredient-nutrition small { color: var(--muted); font-size: 8px; font-weight: 700; }
+.reusable-ingredient-nutrition span { padding: 3px 5px; border: 1px solid var(--line); border-radius: 5px; color: var(--text); background: var(--panel); font: 600 8px 'IBM Plex Mono', monospace; }
+.reusable-ingredient-missing-nutrition { color: var(--muted); font-size: 8px; }
+.reusable-ingredient-add { flex: 0 0 auto; }
 .empty-form-hint { margin: 0; color: var(--muted); font-size: 11px; }
 .ingredient-editor-row { display: grid; gap: 9px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
 .ingredient-editor-fields { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(125px, .8fr); gap: 10px; }

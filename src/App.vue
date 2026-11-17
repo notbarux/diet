@@ -58,6 +58,8 @@ const form = ref({
 })
 const addingStoreFor = ref<string | null>(null)
 const newStoreName = ref('')
+const showReusableIngredients = ref(false)
+const reusableIngredientSearch = ref('')
 const shoppingStatuses = ref<Record<string, ShoppingStatus>>({})
 const storePriorityOrder = ref<string[]>([])
 const storePriorityDraft = ref<string[]>([])
@@ -141,6 +143,44 @@ const fullDate = (date: Date) => new Intl.DateTimeFormat('en-US', {
 const monthDay = (date: Date) => new Intl.DateTimeFormat('en-US', {
   day: 'numeric', month: 'short',
 }).format(date)
+const reusableIngredients = computed(() => {
+  const uniqueIngredients = new Map<string, MealIngredient & { key: string; sourceMeals: string[] }>()
+
+  meals.value.forEach(meal => {
+    if (editing.value?.id === meal.id) return
+    normalizedIngredients(meal.ingredients).forEach(ingredient => {
+      const key = JSON.stringify([
+        ingredient.name.trim().toLocaleLowerCase(),
+        ingredient.quantity,
+        ingredient.quantityUnit,
+        [...ingredient.storeIds].sort(),
+        ingredient.nutritionBasis || '100g',
+        ingredient.nutrition || null,
+      ])
+      const existing = uniqueIngredients.get(key)
+      if (existing) {
+        if (!existing.sourceMeals.includes(meal.name)) existing.sourceMeals.push(meal.name)
+        return
+      }
+      uniqueIngredients.set(key, {
+        ...ingredient,
+        storeIds: [...ingredient.storeIds],
+        ...(ingredient.nutrition ? { nutrition: { ...ingredient.nutrition } } : {}),
+        key,
+        sourceMeals: [meal.name],
+      })
+    })
+  })
+
+  const query = reusableIngredientSearch.value.trim().toLocaleLowerCase()
+  return [...uniqueIngredients.values()]
+    .filter(ingredient =>
+      !query ||
+      ingredient.name.toLocaleLowerCase().includes(query) ||
+      ingredient.sourceMeals.some(mealName => mealName.toLocaleLowerCase().includes(query)),
+    )
+    .sort((a, b) => a.name.localeCompare(b.name) || a.sourceMeals[0].localeCompare(b.sourceMeals[0]))
+})
 const sortedMeals = computed(() => meals.value
   .filter(meal => !excludeVariableMeals.value || !meal.variable)
   .filter(meal => meal.name.toLowerCase().includes(search.value.toLowerCase()))
@@ -661,6 +701,8 @@ function openMeal(meal?: Meal, readOnly = false) {
   } : { name: '', variable: false, ingredients: [] }
   addingStoreFor.value = null
   newStoreName.value = ''
+  showReusableIngredients.value = false
+  reusableIngredientSearch.value = ''
   openPickerKey.value = null
   modal.value = true
 }
@@ -680,6 +722,17 @@ function addIngredient() {
     quantityUnit: 'g',
     storeIds: [],
     nutritionBasis: '100g',
+  })
+}
+function reuseExistingIngredient(source: MealIngredient) {
+  form.value.ingredients.push({
+    localId: crypto.randomUUID(),
+    name: source.name,
+    quantity: source.quantity,
+    quantityUnit: source.quantityUnit,
+    storeIds: [...source.storeIds],
+    nutritionBasis: source.nutritionBasis || (source.quantityUnit === 'g' ? '100g' : 'unit'),
+    ...(source.nutrition ? { nutrition: { ...source.nutrition } } : {}),
   })
 }
 function removeIngredient(localId: string) {
@@ -1290,7 +1343,45 @@ function ingredientKeyFor(name: string): string {
           <fieldset v-else class="meal-editor-fieldset">
           <label class="form-field meal-name-field">{{ 'Meal name' }}<input v-model="form.name" required maxlength="90" autofocus /></label>
           <div class="ingredients-editor">
-            <div class="ingredients-editor-heading"><h3>{{ 'Ingredients' }}</h3><button v-if="!viewing" type="button" class="secondary-btn small-btn" @click="addIngredient"><Plus :size="15" />{{ 'Add ingredient' }}</button></div>
+            <div class="ingredients-editor-heading">
+              <h3>{{ 'Ingredients' }}</h3>
+              <div class="ingredients-heading-actions">
+                <button
+                  v-if="!viewing"
+                  type="button"
+                  class="secondary-btn small-btn"
+                  :aria-expanded="showReusableIngredients"
+                  @click="showReusableIngredients = !showReusableIngredients; if (!showReusableIngredients) reusableIngredientSearch = ''"
+                >Reuse existing</button>
+                <button v-if="!viewing" type="button" class="secondary-btn small-btn" @click="addIngredient"><Plus :size="15" />{{ 'Add ingredient' }}</button>
+              </div>
+            </div>
+            <div v-if="!viewing && showReusableIngredients" class="reusable-ingredients-panel">
+              <label class="form-field reusable-ingredients-search">
+                Search saved ingredients
+                <input v-model="reusableIngredientSearch" type="search" placeholder="Ingredient or recipe name…" />
+              </label>
+              <div v-if="reusableIngredients.length" class="reusable-ingredients-list">
+                <article v-for="ingredient in reusableIngredients" :key="ingredient.key" class="reusable-ingredient-option">
+                  <div class="reusable-ingredient-info">
+                    <div class="reusable-ingredient-heading">
+                      <strong>{{ ingredient.name }}</strong>
+                      <span>{{ quantityLabel(ingredient.quantity, ingredient.quantityUnit) || 'No quantity saved' }}</span>
+                    </div>
+                    <p class="reusable-ingredient-sources">From {{ ingredient.sourceMeals.join(', ') }}</p>
+                    <div v-if="ingredientHasNutrition(ingredient)" class="reusable-ingredient-nutrition">
+                      <small>{{ ingredient.nutritionBasis === 'unit' ? 'Per unit' : 'Per 100 g' }}</small>
+                      <template v-for="metric in nutrientMetrics" :key="metric.key">
+                        <span v-if="typeof ingredient.nutrition?.[metric.key] === 'number'">{{ metric.shortLabel }} {{ formatNutritionValue(ingredient.nutrition?.[metric.key] ?? null, metric.unit) }}</span>
+                      </template>
+                    </div>
+                    <small v-else class="reusable-ingredient-missing-nutrition">Nutrition values not saved</small>
+                  </div>
+                  <button type="button" class="secondary-btn small-btn reusable-ingredient-add" @click="reuseExistingIngredient(ingredient)">Add</button>
+                </article>
+              </div>
+              <p v-else class="empty-form-hint">No saved ingredients match this search.</p>
+            </div>
             <p v-if="!form.ingredients.length" class="empty-form-hint">{{ 'No ingredients added yet.' }}</p>
             <div v-for="ingredient in form.ingredients" :key="ingredient.localId" class="ingredient-editor-row">
               <div class="ingredient-editor-fields">
