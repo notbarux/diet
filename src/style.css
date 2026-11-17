@@ -625,7 +625,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .nutrition-input-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .insights-heading { align-items: center !important; flex-direction: row; gap: 8px; }
   .insights-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
-  .insights-week-heading { align-items: center; flex-direction: row; gap: 6px; }
+  .insights-section-heading.insights-week-heading { align-items: center; flex-direction: row; gap: 6px; }
   .insights-week-heading h2 { font-size: 13px; }
   .insights-week-toolbar { gap: 2px; }
   .insights-week-toolbar .week-range-display { min-width: 84px; padding: 0 1px; font-size: 8px; }
