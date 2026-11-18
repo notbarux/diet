@@ -1054,7 +1054,7 @@ function ingredientKeyFor(name: string): string {
                 <div class="meal-picker-actions day-meal-picker-actions">
                   <div class="custom-select-wrap day-meal-select" @click.stop>
                     <button class="custom-select-trigger" :aria-expanded="openPickerKey === `plan-${dateKey(day)}-${type}`" @click="togglePicker(`plan-${dateKey(day)}-${type}`, $event)">
-                      <span>{{ plannedMealName(dateKey(day), type) || 'Choose a meal' }}</span><ChevronRight class="select-chevron" :size="15" />
+                      <span>{{ plannedMealName(dateKey(day), type) || '-' }}</span><ChevronRight class="select-chevron" :size="15" />
                     </button>
                     <Teleport to="body">
                       <div v-if="openPickerKey === `plan-${dateKey(day)}-${type}`" class="custom-select-menu dropdown-menu-portal" :style="dropdownStyle" @click.stop>
