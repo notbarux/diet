@@ -261,7 +261,7 @@ const dailyNutritionTargets = computed<Record<NutrientKey, NutritionTarget> | nu
     salt: { min: null, max: 5, goal: 5 },
   }
 })
-const weekStartKey = dateKey(startOfWeek(planningReferenceDate))
+const selectedWeekStartKey = computed(() => dateKey(startOfWeek(selectedDate.value)))
 const currentWeekEndDate = new Date(startOfWeek(planningReferenceDate))
 currentWeekEndDate.setDate(currentWeekEndDate.getDate() + 6)
 const currentWeekEndKey = dateKey(currentWeekEndDate)
@@ -269,7 +269,7 @@ const weekKeyFor = (key: string) => dateKey(startOfWeek(dateFromKey(key)))
 
 function thisWeekFrequencyFor(mealId: string): number {
   return Object.entries(plans.value).reduce((total, [key, day]) => {
-    if (weekKeyFor(key) !== weekStartKey) return total
+    if (weekKeyFor(key) !== selectedWeekStartKey.value) return total
     return total + Object.values(day.meals || {}).filter(planned => planned?.mealId === mealId).length
   }, 0)
 }
