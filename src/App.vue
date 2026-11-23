@@ -1240,6 +1240,7 @@ function ingredientKeyFor(name: string): string {
                   <div v-if="plannedMeal(dateKey(day), type)" class="day-meal-actions">
                     <button
                       type="button"
+                      v-if="mobilePlanView !== 'grid'"
                       class="icon-btn day-meal-adjust-btn"
                       :class="{ 'has-adjustments': Object.keys(plans[dateKey(day)]?.meals[type]?.ingredientQuantities || {}).length > 0 }"
                       :title="'Adjust quantities for this occurrence'"
