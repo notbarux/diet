@@ -380,9 +380,9 @@ function normalizedIngredients(raw: unknown): MealIngredient[] {
 }
 
 function plannedIngredientKey(ingredients: readonly Pick<MealIngredient, 'name'>[], index: number): string {
-  const normalizedName = ingredients[index]?.name.trim().toLocaleLowerCase() || `ingredient-${index}`
+  const normalizedName = ingredients[index]?.name.trim().toLowerCase() || `ingredient-${index}`
   const duplicateIndex = ingredients.slice(0, index)
-    .filter(ingredient => ingredient.name.trim().toLocaleLowerCase() === normalizedName).length
+    .filter(ingredient => ingredient.name.trim().toLowerCase() === normalizedName).length
   return `${encodeURIComponent(normalizedName).split('.').join('%2E')}:${duplicateIndex}`
 }
 
