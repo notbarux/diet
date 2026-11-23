@@ -10,6 +10,7 @@ import type {
   Meal,
   MealIngredient,
   MealType,
+  PlannedMeal,
   NutrientKey,
   NutritionBasis,
   ShoppingStatus,
@@ -41,11 +42,31 @@ type NutritionSex = 'female' | 'male' | ''
 type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'high'
 type NutritionProfile = { weightKg: number; heightCm: number; age: number | null; sex: NutritionSex; activityLevel: ActivityLevel }
 type NutritionTarget = { min: number | null; max: number | null; goal: number }
+type PlannedQuantityDraft = {
+  key: string
+  name: string
+  quantity: string
+  baseQuantity: string
+  quantityUnit: IngredientQuantityUnit
+}
+type PlannedMealEditor = {
+  dateKey: string
+  type: MealType
+  mealId: string
+  mealName: string
+  ingredients: PlannedQuantityDraft[]
+}
 const nutritionProfile = ref<NutritionProfile>({ weightKg: 60, heightCm: 170, age: null, sex: '', activityLevel: 'sedentary' })
 const showNutritionProfile = ref(false)
 const nutritionProfileSaving = ref(false)
 const nutritionProfileMessage = ref('')
 const modal = ref(false)
+const plannedMealEditor = ref<PlannedMealEditor | null>(null)
+const plannedMealSaving = ref(false)
+const plannedMealEditorError = ref('')
+const plannedMealDraftChanged = computed(() => plannedMealEditor.value?.ingredients.some(ingredient =>
+  normalizeQuantity(ingredient.quantity, ingredient.quantityUnit) !== ingredient.baseQuantity,
+) ?? false)
 const editing = ref<Meal | null>(null)
 const viewing = ref(false)
 const openPickerKey = ref<string | null>(null)
@@ -216,7 +237,7 @@ const insightDays = computed(() => weekDays.value.map(date => {
     const planned = plans.value[key]?.meals?.[type]
     if (!planned) return []
     const meal = meals.value.find(item => item.id === planned.mealId)
-    const ingredients = meal?.ingredients || []
+    const ingredients = meal ? plannedIngredients(planned, meal) : []
     return [{
       type,
       name: meal?.name || planned.mealName,
@@ -356,6 +377,27 @@ function normalizedIngredients(raw: unknown): MealIngredient[] {
     }
     return { name: '', quantity: '', quantityUnit: 'g' as const, storeIds: [], nutritionBasis: '100g' as const }
   }).filter(item => item.name.trim())
+}
+
+function plannedIngredientKey(ingredients: readonly Pick<MealIngredient, 'name'>[], index: number): string {
+  const normalizedName = ingredients[index]?.name.trim().toLocaleLowerCase() || `ingredient-${index}`
+  const duplicateIndex = ingredients.slice(0, index)
+    .filter(ingredient => ingredient.name.trim().toLocaleLowerCase() === normalizedName).length
+  return `${encodeURIComponent(normalizedName).replace(/\\./g, '%2E')}:${duplicateIndex}`
+}
+
+function plannedIngredients(planned: PlannedMeal, meal: Meal): MealIngredient[] {
+  const ingredients = normalizedIngredients(meal.ingredients)
+  const overrides = planned.ingredientQuantities || {}
+  return ingredients.map((ingredient, index) => {
+    const key = plannedIngredientKey(ingredients, index)
+    return {
+      ...ingredient,
+      quantity: Object.prototype.hasOwnProperty.call(overrides, key)
+        ? normalizeQuantity(overrides[key], ingredient.quantityUnit)
+        : ingredient.quantity,
+    }
+  })
 }
 
 let stopMeals: (() => void) | undefined
@@ -609,6 +651,7 @@ function exportWeeklyPlan() {
       meals: mealTypes.map((type, index) => {
         const planned = plans.value[key]?.meals?.[type]
         const meal = plannedMeal(key, type)
+        const ingredients = planned && meal ? plannedIngredients(planned, meal) : []
         return {
           type,
           label: mealTypeLabels[type],
@@ -617,7 +660,7 @@ function exportWeeklyPlan() {
             id: planned.mealId,
             name: meal?.name || planned.mealName || null,
             variable: meal?.variable ?? null,
-            ingredients: meal ? normalizedIngredients(meal.ingredients).map(ingredient => ({
+            ingredients: ingredients.map(ingredient => ({
               name: ingredient.name,
               quantity: ingredient.quantity ? Number(ingredient.quantity) : null,
               quantity_unit: ingredient.quantityUnit,
@@ -769,9 +812,81 @@ function viewMeal(meal: Meal) {
   openMeal(meal, true)
 }
 function viewPlannedMeal(day: Date, type: MealType) {
-  const mealId = plans.value[dateKey(day)]?.meals?.[type]?.mealId
-  const meal = meals.value.find(item => item.id === mealId)
-  if (meal) viewMeal(meal)
+  const planned = plans.value[dateKey(day)]?.meals?.[type]
+  const meal = meals.value.find(item => item.id === planned?.mealId)
+  if (meal && planned) viewMeal({ ...meal, ingredients: plannedIngredients(planned, meal) })
+}
+function openPlannedMealAdjustments(day: Date, type: MealType) {
+  const key = dateKey(day)
+  const planned = plans.value[key]?.meals?.[type]
+  const meal = meals.value.find(item => item.id === planned?.mealId)
+  if (!meal || !planned) return
+  const baseIngredients = normalizedIngredients(meal.ingredients)
+  const currentIngredients = plannedIngredients(planned, meal)
+  plannedMealEditor.value = {
+    dateKey: key,
+    type,
+    mealId: meal.id,
+    mealName: meal.name,
+    ingredients: baseIngredients.map((ingredient, index) => ({
+      key: plannedIngredientKey(baseIngredients, index),
+      name: ingredient.name,
+      quantity: currentIngredients[index]?.quantity ?? ingredient.quantity,
+      baseQuantity: ingredient.quantity,
+      quantityUnit: ingredient.quantityUnit,
+    })),
+  }
+  plannedMealEditorError.value = ''
+}
+function adjustPlannedIngredientQuantity(ingredient: PlannedQuantityDraft, direction: -1 | 1) {
+  const current = Number(normalizeQuantity(ingredient.quantity, ingredient.quantityUnit) || 0)
+  const increment = ingredient.quantityUnit === 'unit' ? 1 : 10
+  const next = Math.max(0, current + direction * increment)
+  ingredient.quantity = String(Number(next.toFixed(3)))
+}
+function resetPlannedMealQuantities() {
+  plannedMealEditor.value?.ingredients.forEach(ingredient => {
+    ingredient.quantity = ingredient.baseQuantity
+  })
+}
+function closePlannedMealEditor() {
+  if (!plannedMealSaving.value) plannedMealEditor.value = null
+}
+async function savePlannedMealAdjustments() {
+  const editor = plannedMealEditor.value
+  if (!db || !editor || plannedMealSaving.value) return
+  const currentPlanned = plans.value[editor.dateKey]?.meals?.[editor.type]
+  const meal = meals.value.find(item => item.id === editor.mealId)
+  if (!currentPlanned || currentPlanned.mealId !== editor.mealId || !meal) {
+    plannedMealEditorError.value = 'This planned meal changed. Close this editor and reopen it.'
+    return
+  }
+
+  const baseIngredients = normalizedIngredients(meal.ingredients)
+  const overrides: Record<string, string> = {}
+  editor.ingredients.forEach(draft => {
+    const index = baseIngredients.findIndex((ingredient, ingredientIndex) =>
+      plannedIngredientKey(baseIngredients, ingredientIndex) === draft.key,
+    )
+    if (index < 0) return
+    const base = baseIngredients[index]
+    const quantity = normalizeQuantity(draft.quantity, base.quantityUnit)
+    if (quantity !== base.quantity) overrides[draft.key] = quantity
+  })
+
+  plannedMealSaving.value = true
+  plannedMealEditorError.value = ''
+  try {
+    await updateDoc(doc(db, 'plan', editor.dateKey), {
+      [`meals.${editor.type}`]: { ...currentPlanned, ingredientQuantities: overrides },
+    })
+    plannedMealEditor.value = null
+  } catch (error) {
+    plannedMealEditorError.value = 'Unable to save these quantities. Please try again.'
+    console.error('Unable to save planned meal quantities:', error)
+  } finally {
+    plannedMealSaving.value = false
+  }
 }
 function addIngredient() {
   form.value.ingredients.push({
@@ -921,7 +1036,7 @@ const shoppingItems = computed(() => {
       if (!planned) continue
       const meal = meals.value.find(item => item.id === planned.mealId)
       if (!meal || meal.variable) continue
-      for (const ingredient of meal.ingredients) {
+      for (const ingredient of plannedIngredients(planned, meal)) {
         const name = ingredient.name.trim()
         if (!name) continue
         const quantityUnit = ingredient.quantityUnit || 'g'
@@ -1122,9 +1237,20 @@ function ingredientKeyFor(name: string): string {
                       </div>
                     </Teleport>
                   </div>
-                  <div v-if="plannedMeal(dateKey(day), type) && mobilePlanView !== 'grid'" class="day-meal-actions">
-                    <button type="button" class="icon-btn day-meal-view-btn" :title="'View meal'" :aria-label="'View meal'" @click="viewPlannedMeal(day, type)"><Eye :size="15" /></button>
-                    <button type="button" class="icon-btn clear-meal-btn" :title="'Clear meal'" :aria-label="'Clear meal'" @click="clearPlanMeal(day, type)"><X :size="15" /></button>
+                  <div v-if="plannedMeal(dateKey(day), type)" class="day-meal-actions">
+                    <button
+                      type="button"
+                      class="icon-btn day-meal-adjust-btn"
+                      :class="{ 'has-adjustments': Object.keys(plans[dateKey(day)]?.meals[type]?.ingredientQuantities || {}).length > 0 }"
+                      :title="'Adjust quantities for this occurrence'"
+                      :aria-label="'Adjust quantities for this occurrence'"
+                      :disabled="!plannedMeal(dateKey(day), type)?.ingredients.length"
+                      @click="openPlannedMealAdjustments(day, type)"
+                    ><Pencil :size="14" /></button>
+                    <template v-if="mobilePlanView !== 'grid'">
+                      <button type="button" class="icon-btn day-meal-view-btn" :title="'View meal'" :aria-label="'View meal'" @click="viewPlannedMeal(day, type)"><Eye :size="15" /></button>
+                      <button type="button" class="icon-btn clear-meal-btn" :title="'Clear meal'" :aria-label="'Clear meal'" @click="clearPlanMeal(day, type)"><X :size="15" /></button>
+                    </template>
                   </div>
                 </div>
               </div>
@@ -1263,7 +1389,7 @@ function ingredientKeyFor(name: string): string {
           </div>
         </section>
         <section class="insights-section">
-          <div class="insights-section-heading"><h2>{{ 'Daily and meal breakdown' }}</h2><span>{{ 'Values are calculated from the quantities saved in each recipe.' }}</span></div>
+          <div class="insights-section-heading"><h2>{{ 'Daily and meal breakdown' }}</h2><span>{{ 'Values include recipe quantities and one-off adjustments made in Home.' }}</span></div>
           <div class="insights-days">
             <article v-for="day in insightDays" :key="day.key" class="insight-day-card">
               <header class="insight-day-heading">
@@ -1340,6 +1466,51 @@ function ingredientKeyFor(name: string): string {
         </div>
       </section>
     </main>
+
+    <div v-if="plannedMealEditor" class="modal-backdrop planned-meal-adjustment-backdrop" @click.self="closePlannedMealEditor">
+      <section class="meal-modal planned-meal-adjustment-modal" role="dialog" aria-modal="true" :aria-label="'Adjust quantities for this meal'">
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow">HOME · {{ mealTypeLabels[plannedMealEditor.type] }}</p>
+            <h2>{{ plannedMealEditor.mealName }}</h2>
+            <p class="planned-meal-adjustment-intro">Adjust each ingredient for this planned meal only. The saved recipe in Meals will not change.</p>
+          </div>
+          <button type="button" class="icon-btn" :aria-label="'Close'" :disabled="plannedMealSaving" @click="closePlannedMealEditor"><X /></button>
+        </div>
+        <form @submit.prevent="savePlannedMealAdjustments">
+          <div v-if="plannedMealEditor.ingredients.length" class="planned-ingredient-adjustments">
+            <article v-for="ingredient in plannedMealEditor.ingredients" :key="ingredient.key" class="planned-ingredient-adjustment">
+              <div class="planned-ingredient-label">
+                <strong>{{ ingredient.name }}</strong>
+                <small>{{ ingredient.quantityUnit === 'unit' ? 'Pieces' : 'Grams' }}</small>
+              </div>
+              <div class="planned-quantity-control">
+                <button type="button" :aria-label="'Decrease ' + ingredient.name" :disabled="Number(ingredient.quantity) <= 0 || !ingredient.quantity" @click="adjustPlannedIngredientQuantity(ingredient, -1)">−</button>
+                <input
+                  v-model="ingredient.quantity"
+                  type="number"
+                  min="0"
+                  :step="ingredient.quantityUnit === 'unit' ? 1 : 'any'"
+                  :inputmode="ingredient.quantityUnit === 'unit' ? 'numeric' : 'decimal'"
+                  :aria-label="ingredient.name + ' quantity'"
+                />
+                <button type="button" :aria-label="'Increase ' + ingredient.name" @click="adjustPlannedIngredientQuantity(ingredient, 1)">+</button>
+              </div>
+            </article>
+          </div>
+          <p v-else class="empty-form-hint">This meal has no ingredients to adjust.</p>
+          <p class="planned-meal-adjustment-note">Changes are stored on this date and meal slot, and are included in Insights and Shopping. They are never written to the Meals recipe.</p>
+          <div class="planned-adjustment-footer">
+            <button v-if="plannedMealDraftChanged" type="button" class="secondary-btn small-btn" :disabled="plannedMealSaving" @click="resetPlannedMealQuantities">Restore recipe quantities</button>
+            <span v-if="plannedMealEditorError" class="planned-meal-adjustment-error" role="alert">{{ plannedMealEditorError }}</span>
+            <div class="modal-actions">
+              <button type="button" class="secondary-btn" :disabled="plannedMealSaving" @click="closePlannedMealEditor">{{ 'Cancel' }}</button>
+              <button type="submit" class="primary-btn" :disabled="plannedMealSaving || !plannedMealEditor.ingredients.length">{{ plannedMealSaving ? 'Saving…' : 'Save for this occurrence' }}</button>
+            </div>
+          </div>
+        </form>
+      </section>
+    </div>
 
     <div v-if="storePriorityModal" class="modal-backdrop" @click.self="storePriorityModal = false">
       <section class="meal-modal store-priority-modal">

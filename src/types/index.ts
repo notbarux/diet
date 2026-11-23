@@ -50,6 +50,8 @@ export interface Meal {
 export interface PlannedMeal {
   mealId: string
   mealName: string
+  /** One-off quantities for this planned occurrence, keyed by normalized ingredient identity. */
+  ingredientQuantities?: Record<string, string>
 }
 
 export interface DayPlan {
