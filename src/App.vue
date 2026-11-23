@@ -681,6 +681,9 @@ function quantityLabel(quantity: string, unit: IngredientQuantityUnit): string {
   const suffix = unit === 'unit' && Number(quantity) === 1 ? 'pc' : quantityUnitShort(unit)
   return `${quantity} ${suffix}`
 }
+function ingredientHasNutrition(ingredient: Pick<MealIngredient, 'nutrition'>): boolean {
+  return normalizeNutrition(ingredient.nutrition) !== undefined
+}
 function ingredientHasCompleteNutrition(ingredient: Pick<MealIngredient, 'nutrition'>): boolean {
   const nutrition = normalizeNutrition(ingredient.nutrition)
   return !!nutrition && Object.values(nutrition).every(value => value !== null)
