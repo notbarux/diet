@@ -194,8 +194,8 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .week-range-display { min-width: 80px; padding: 0 2px; color: var(--muted); font: 600 10px 'IBM Plex Mono', monospace; text-align: center; white-space: nowrap; }
 .plan-arrow { width: 39px; height: 39px; border-color: var(--line); background: var(--panel); }
 .plan-arrow:disabled { opacity: .3; cursor: not-allowed; }
-.plan-export-btn { min-height: 39px; gap: 7px; padding: 8px 11px; white-space: nowrap; }
-.plan-export-btn svg { flex: 0 0 auto; }
+.plan-export-btn { width: 39px; min-width: 39px; min-height: 39px; flex: 0 0 39px; justify-content: center; gap: 0; padding: 0; }
+.plan-export-btn svg { width: 15px; height: 15px; flex: 0 0 auto; }
 .plan-day-list { width: 100%; display: grid; gap: 10px; padding: 3px 0 18px; }
 .plan-day-row { min-width: 0; display: grid; grid-template-columns: 150px minmax(0, 1fr); align-items: stretch; overflow: visible; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
 .plan-day-row-today, .plan-day-row-focused { border-color: color-mix(in srgb, var(--accent) 58%, var(--line)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent); }
@@ -515,7 +515,6 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .week-range-display { min-width: 80px; font-size: 9px; }
   .plan-arrow { width: 34px; height: 35px; flex: 0 0 34px; }
   .plan-export-btn { width: 34px; min-width: 34px; min-height: 35px; flex: 0 0 34px; justify-content: center; gap: 0; padding: 0; }
-  .plan-export-btn span { display: none; }
   .mobile-plan-view-toolbar {
     display: flex;
     flex: 0 0 auto;

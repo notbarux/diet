@@ -1080,6 +1080,7 @@ function ingredientKeyFor(name: string): string {
         <div class="page-heading compact plan-heading section-heading">
           <h1>{{ 'Home' }}</h1>
           <div class="plan-toolbar">
+            <button type="button" class="secondary-btn plan-export-btn" title="Export weekly plan as JSON" aria-label="Export weekly plan as JSON" @click="exportWeeklyPlan"><Download :size="15" /></button>
             <div class="mobile-plan-view-toolbar" role="group" aria-label="Weekly view">
               <button type="button" class="mobile-plan-view-button" :class="{ active: mobilePlanView === 'inline' }" :aria-pressed="mobilePlanView === 'inline'" title="Inline view" aria-label="Inline view" @click="mobilePlanView = 'inline'"><List :size="16" /></button>
               <button type="button" class="mobile-plan-view-button" :class="{ active: mobilePlanView === 'grid' }" :aria-pressed="mobilePlanView === 'grid'" title="Grid view" aria-label="Grid view" @click="mobilePlanView = 'grid'"><LayoutGrid :size="16" /></button>
@@ -1087,7 +1088,6 @@ function ingredientKeyFor(name: string): string {
             <button class="icon-btn plan-arrow" :title="'Previous week'" :disabled="!canGoToPreviousWeek" @click="shiftWeek(-1)"><ChevronLeft /></button>
             <div class="week-range-display" aria-live="polite">{{ selectedWeekRange }}</div>
             <button class="icon-btn plan-arrow" :title="'Next week'" @click="shiftWeek(1)"><ChevronRight /></button>
-            <button type="button" class="secondary-btn plan-export-btn" title="Export weekly plan as JSON" aria-label="Export weekly plan as JSON" @click="exportWeeklyPlan"><Download :size="15" /><span>Export</span></button>
           </div>
         </div>
 
