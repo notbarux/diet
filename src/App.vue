@@ -669,7 +669,7 @@ function exportWeeklyPlan() {
                 .map(store => store.name),
               nutrition_basis: ingredient.nutritionBasis || (ingredient.quantityUnit === 'unit' ? 'unit' : '100g'),
               nutrition: ingredient.nutrition || null,
-            })) : [],
+            })),
           } : null,
         }
       }),
