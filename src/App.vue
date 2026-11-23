@@ -383,7 +383,7 @@ function plannedIngredientKey(ingredients: readonly Pick<MealIngredient, 'name'>
   const normalizedName = ingredients[index]?.name.trim().toLocaleLowerCase() || `ingredient-${index}`
   const duplicateIndex = ingredients.slice(0, index)
     .filter(ingredient => ingredient.name.trim().toLocaleLowerCase() === normalizedName).length
-  return `${encodeURIComponent(normalizedName).replace(/\\./g, '%2E')}:${duplicateIndex}`
+  return `${encodeURIComponent(normalizedName).split('.').join('%2E')}:${duplicateIndex}`
 }
 
 function plannedIngredients(planned: PlannedMeal, meal: Meal): MealIngredient[] {
@@ -1482,7 +1482,7 @@ function ingredientKeyFor(name: string): string {
             <article v-for="ingredient in plannedMealEditor.ingredients" :key="ingredient.key" class="planned-ingredient-adjustment">
               <div class="planned-ingredient-label">
                 <strong>{{ ingredient.name }}</strong>
-                <small>{{ ingredient.quantityUnit === 'unit' ? 'Pieces' : 'Grams' }}</small>
+                <small>{{ ingredient.quantityUnit === 'unit' ? 'Pieces · ±1' : 'Grams · ±10' }}</small>
               </div>
               <div class="planned-quantity-control">
                 <button type="button" :aria-label="'Decrease ' + ingredient.name" :disabled="Number(ingredient.quantity) <= 0 || !ingredient.quantity" @click="adjustPlannedIngredientQuantity(ingredient, -1)">−</button>
@@ -1490,7 +1490,7 @@ function ingredientKeyFor(name: string): string {
                   v-model="ingredient.quantity"
                   type="number"
                   min="0"
-                  :step="ingredient.quantityUnit === 'unit' ? 1 : 'any'"
+                  :step="ingredient.quantityUnit === 'unit' && Number.isInteger(Number(ingredient.baseQuantity)) ? 1 : 'any'"
                   :inputmode="ingredient.quantityUnit === 'unit' ? 'numeric' : 'decimal'"
                   :aria-label="ingredient.name + ' quantity'"
                 />
