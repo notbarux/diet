@@ -22,7 +22,7 @@ import {
   Search, LogOut, X, Trash2, Pencil, Sparkles, ShoppingBasket,
   List, LayoutGrid,
   Check, Store as StoreIcon, House, ShoppingCart, SlidersHorizontal, ChartPie,
-  ChevronUp, ChevronDown, Eye, Download,
+  ChevronUp, ChevronDown, Eye,
 } from '@lucide/vue'
 
 const appVersion = packageJson.version
@@ -642,61 +642,6 @@ function plannedMealName(dayKey: string, type: MealType): string | undefined {
   return meals.value.find(meal => meal.id === planned.mealId)?.name || planned.mealName || undefined
 }
 
-function exportWeeklyPlan() {
-  const days = weekDays.value.map(day => {
-    const key = dateKey(day)
-    return {
-      date: key,
-      weekday: new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(day),
-      meals: mealTypes.map((type, index) => {
-        const planned = plans.value[key]?.meals?.[type]
-        const meal = plannedMeal(key, type)
-        const ingredients = planned && meal ? plannedIngredients(planned, meal) : []
-        return {
-          type,
-          label: mealTypeLabels[type],
-          time: mealTimes[index],
-          meal: planned ? {
-            id: planned.mealId,
-            name: meal?.name || planned.mealName || null,
-            variable: meal?.variable ?? null,
-            ingredients: ingredients.map(ingredient => ({
-              name: ingredient.name,
-              quantity: ingredient.quantity ? Number(ingredient.quantity) : null,
-              quantity_unit: ingredient.quantityUnit,
-              stores: stores.value
-                .filter(store => ingredient.storeIds.includes(store.id))
-                .map(store => store.name),
-              nutrition_basis: ingredient.nutritionBasis || (ingredient.quantityUnit === 'unit' ? 'unit' : '100g'),
-              nutrition: ingredient.nutrition || null,
-            })),
-          } : null,
-        }
-      }),
-    }
-  })
-
-  const payload = {
-    format: 'diet-weekly-plan',
-    schema_version: 1,
-    exported_at: new Date().toISOString(),
-    week: {
-      start_date: dateKey(weekDays.value[0]),
-      end_date: dateKey(weekDays.value[6]),
-    },
-    days,
-  }
-  const content = JSON.stringify(payload, null, 2)
-  const blob = new Blob([content], { type: 'application/json;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `diet-week-plan-${payload.week.start_date}-to-${payload.week.end_date}.json`
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
-}
 function pickStore(ingredient: { storeIds: string[] }, storeId: string) {
   if (!storeId) {
     ingredient.storeIds = []
@@ -1217,7 +1162,6 @@ function ingredientKeyFor(name: string): string {
         <div class="page-heading compact plan-heading section-heading">
           <h1>{{ 'Home' }}</h1>
           <div class="plan-toolbar">
-            <button type="button" class="secondary-btn plan-export-btn" title="Export weekly plan as JSON" aria-label="Export weekly plan as JSON" @click="exportWeeklyPlan"><Download :size="15" /></button>
             <div class="mobile-plan-view-toolbar" role="group" aria-label="Weekly view">
               <button type="button" class="mobile-plan-view-button" :class="{ active: mobilePlanView === 'inline' }" :aria-pressed="mobilePlanView === 'inline'" title="Inline view" aria-label="Inline view" @click="mobilePlanView = 'inline'"><List :size="16" /></button>
               <button type="button" class="mobile-plan-view-button" :class="{ active: mobilePlanView === 'grid' }" :aria-pressed="mobilePlanView === 'grid'" title="Grid view" aria-label="Grid view" @click="mobilePlanView = 'grid'"><LayoutGrid :size="16" /></button>
