@@ -348,6 +348,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .meal-view-nutrition-values { min-width: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
 .meal-view-nutrition-values > span { min-width: 0; display: grid; gap: 3px; }
 .meal-view-nutrition-values small { overflow: hidden; color: var(--muted); font-size: 8px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.meal-view-nutrition-values small.meal-view-reference-value { font-size: 7px; font-weight: 500; }
 .meal-view-nutrition-values strong { overflow: hidden; color: var(--text); font: 600 10px 'IBM Plex Mono', monospace; text-overflow: ellipsis; white-space: nowrap; }
 .meal-view-no-nutrition { margin: 0; color: var(--muted); font-size: 10px; }
 .modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; margin-bottom: 22px; }

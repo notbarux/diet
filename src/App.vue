@@ -755,6 +755,24 @@ function formatNutritionValue(value: number | null, unit: string): string {
   const rounded = unit === 'kcal' ? Math.round(value) : Number(value.toFixed(1))
   return `${new Intl.NumberFormat('en-US').format(rounded)} ${unit}`
 }
+function effectiveNutritionValue(
+  ingredient: Pick<MealIngredient, 'quantity' | 'quantityUnit' | 'nutrition' | 'nutritionBasis'>,
+  key: NutrientKey,
+): number | null {
+  const referenceValue = ingredient.nutrition?.[key]
+  if (typeof referenceValue !== 'number' || !Number.isFinite(referenceValue)) return null
+  const quantityText = ingredient.quantity.trim()
+  if (!quantityText) return null
+  const quantity = Number(quantityText)
+  if (!Number.isFinite(quantity) || quantity < 0) return null
+  const basis = ingredient.nutritionBasis || (ingredient.quantityUnit === 'unit' ? 'unit' : '100g')
+  if (basis === '100g') {
+    if (ingredient.quantityUnit !== 'g') return null
+    return referenceValue * quantity / 100
+  }
+  if (ingredient.quantityUnit !== 'unit') return null
+  return referenceValue * quantity
+}
 function changeIngredientNutritionBasis(ingredient: MealIngredient, event: Event) {
   const basis = (event.target as HTMLSelectElement).value
   if (basis !== '100g' && basis !== 'unit') return
@@ -1563,11 +1581,12 @@ function ingredientKeyFor(name: string): string {
                 <span v-if="ingredient.quantity" class="meal-view-quantity">{{ quantityLabel(ingredient.quantity, ingredient.quantityUnit) }}</span>
               </div>
               <div class="meal-view-nutrition">
-                <div class="meal-view-nutrition-basis">{{ 'Nutrition' }} · {{ 'Values' }} {{ ingredient.nutritionBasis === 'unit' ? 'unit' : '100 g' }}</div>
+                <div class="meal-view-nutrition-basis">{{ 'Nutrition values (' + (ingredient.nutritionBasis === 'unit' ? 'per unit' : 'per 100g') + ')' }}</div>
                 <div v-if="ingredientHasNutrition(ingredient)" class="meal-view-nutrition-values">
                   <span v-for="metric in nutrientMetrics" :key="metric.key">
                     <small>{{ metric.shortLabel }}</small>
-                    <strong>{{ formatNutritionValue(ingredient.nutrition?.[metric.key] ?? null, metric.unit) }}</strong>
+                    <strong>{{ formatNutritionValue(effectiveNutritionValue(ingredient, metric.key), metric.unit) }}</strong>
+                    <small class="meal-view-reference-value">({{ formatNutritionValue(ingredient.nutrition?.[metric.key] ?? null, metric.unit) }} / {{ ingredient.nutritionBasis === 'unit' ? 'unit' : '100g' }})</small>
                   </span>
                 </div>
                 <p v-else class="meal-view-no-nutrition">{{ 'Not enough data' }}</p>
