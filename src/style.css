@@ -161,6 +161,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .meal-row-main { min-width: 0; flex: 1 1 auto; }
 .meal-row-main h3 { margin: 0 0 5px; font-size: 16px; font-weight: 800; letter-spacing: -.35px; }
 .meal-row-main h3.meal-title { display: flex; align-items: center; gap: 7px; }
+.meal-row-main h3.meal-title-warning { color: #d6b46f; }
 .meal-nutrition-indicator { display: inline-flex; align-items: center; justify-content: center; color: var(--success); cursor: help; }
 .meal-row-main > p { margin: 0 0 8px; color: var(--muted); font-size: 11px; }
 .ingredient-preview { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }

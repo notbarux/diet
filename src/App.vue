@@ -681,11 +681,12 @@ function quantityLabel(quantity: string, unit: IngredientQuantityUnit): string {
   const suffix = unit === 'unit' && Number(quantity) === 1 ? 'pc' : quantityUnitShort(unit)
   return `${quantity} ${suffix}`
 }
-function ingredientHasNutrition(ingredient: Pick<MealIngredient, 'nutrition'>): boolean {
-  return !!normalizeNutrition(ingredient.nutrition)
+function ingredientHasCompleteNutrition(ingredient: Pick<MealIngredient, 'nutrition'>): boolean {
+  const nutrition = normalizeNutrition(ingredient.nutrition)
+  return !!nutrition && Object.values(nutrition).every(value => value !== null)
 }
-function mealHasNutrition(meal: Pick<Meal, 'ingredients'>): boolean {
-  return meal.ingredients.length > 0 && meal.ingredients.every(ingredientHasNutrition)
+function mealHasCompleteNutrition(meal: Pick<Meal, 'ingredients'>): boolean {
+  return meal.ingredients.length > 0 && meal.ingredients.every(ingredientHasCompleteNutrition)
 }
 function pickQuantityUnit(
   ingredient: Pick<MealIngredient, 'quantityUnit' | 'nutrition' | 'nutritionBasis'>,
@@ -1147,9 +1148,9 @@ function ingredientKeyFor(name: string): string {
           <article v-for="(meal, index) in sortedMeals" :key="meal.id" class="meal-row">
             <div class="meal-row-number">{{ String(index + 1).padStart(2, '0') }}</div>
             <div class="meal-row-main">
-              <h3 class="meal-title">
+              <h3 class="meal-title" :class="{ 'meal-title-warning': !mealHasCompleteNutrition(meal) }">
                 {{ meal.name }}
-                <span v-if="mealHasNutrition(meal)" class="meal-nutrition-indicator" :title="'Nutrition values are present.'" :aria-label="'Nutrition values are present.'" role="img">
+                <span v-if="mealHasCompleteNutrition(meal)" class="meal-nutrition-indicator" :title="'All nutrition values are present.'" :aria-label="'All nutrition values are present.'" role="img">
                   <Check :size="15" />
                 </span>
               </h3>
